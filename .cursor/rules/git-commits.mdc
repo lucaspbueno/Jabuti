@@ -1,0 +1,155 @@
+---
+description: Regras para análise de mudanças staged e geração de commits padronizados, com alerta para staged misto e sugestão de split quando necessário.
+alwaysApply: false
+---
+
+# Contexto
+
+Este arquivo define como gerar mensagens de commit para este projeto.
+
+Quando eu pedir para analisar arquivos em stage e gerar commit, você deve:
+1. analisar apenas as mudanças staged
+2. identificar a intenção principal da alteração
+3. verificar se as mudanças staged estão coesas
+4. se estiverem coesas, gerar a melhor mensagem de commit possível
+5. se não estiverem coesas, avisar claramente que o stage mistura responsabilidades e sugerir split de commits
+6. ainda assim, caso eu não peça para separar, gerar a melhor mensagem possível com base no conjunto staged atual
+
+# Padrão obrigatório de commit
+
+Use o padrão Conventional Commits.
+
+Formato da primeira linha:
+
+type(scope): descrição curta
+
+Exemplos válidos:
+- feat(users): adicionar endpoint de criação de usuário
+- fix(cache): corrigir invalidação de cache na atualização
+- refactor(service): reorganizar fluxo de criação de usuário
+- test(users): adicionar testes de integração do CRUD
+- docs(readme): atualizar instruções de execução
+- chore(config): ajustar ferramentas de qualidade
+
+# Tipos permitidos
+
+Use apenas os tipos abaixo:
+- feat
+- fix
+- refactor
+- test
+- docs
+- chore
+- ci
+- perf
+- build
+
+# Regras para descrição
+
+1. A descrição deve ser curta, específica e objetiva.
+2. Deve refletir a principal intenção da alteração.
+3. Não use descrições genéricas como "ajustes", "mudanças", "correções" ou "update".
+4. Escreva em português.
+5. Use minúsculas, exceto nomes próprios e siglas técnicas relevantes.
+6. Evite citar arquivos específicos na primeira linha, salvo quando isso for realmente importante.
+
+# Uso de scope
+
+Use scope sempre que fizer sentido.
+
+Scopes comuns neste projeto:
+- api
+- users
+- user
+- cache
+- db
+- alembic
+- models
+- schemas
+- repository
+- service
+- tests
+- readme
+- docker
+- config
+
+Se houver um domínio principal claro, use scope.
+Se o scope atrapalhar mais do que ajudar, ele pode ser omitido.
+
+# Corpo do commit
+
+Quando houver mais de uma mudança relevante ou quando o contexto ajudar na revisão, gere corpo do commit.
+
+Regras do corpo:
+1. Explicar o que foi alterado e o impacto principal.
+2. Pode ser em lista.
+3. Não repetir a primeira linha.
+4. Escrever em português.
+5. Ser objetivo.
+6. Evitar detalhes irrelevantes.
+
+Exemplo:
+
+feat(cache): adicionar cache para detalhe e listagem de usuários
+
+- integrar Redis aos endpoints GET de usuários
+- padronizar chaves de cache para detalhe e paginação
+- preparar base para invalidação em operações de escrita
+
+# Coesão do stage
+
+Antes de gerar o commit, sempre avalie se as mudanças staged pertencem a uma única intenção principal.
+
+Considere staged misto quando houver, por exemplo:
+- mudança de feature + mudança de lint
+- alteração de README + refactor não relacionado
+- testes de uma etapa junto com implementação de outra
+- Docker + regras de negócio sem relação direta
+- múltiplas responsabilidades independentes no mesmo stage
+
+Se o stage estiver misto:
+1. avise claramente que o commit está misturando responsabilidades
+2. sugira uma separação lógica dos commits
+3. depois gere a melhor mensagem possível para o conjunto atual, caso eu queira seguir sem separar
+
+# Processo obrigatório ao responder
+
+Quando eu pedir um commit, siga esta ordem:
+
+1. Leia o que está staged
+2. Identifique a intenção principal
+3. Avalie a coesão do stage
+4. Se houver mistura excessiva, alerte e sugira split
+5. Gere:
+   - mensagem de commit
+   - corpo do commit, se fizer sentido
+
+# Regras de qualidade
+
+1. Prefira precisão a brevidade.
+2. Não invente funcionalidades não presentes nas mudanças staged.
+3. Não gere commit genérico.
+4. Se a mudança for pequena e direta, entregue só a primeira linha.
+5. Se a mudança for maior, entregue primeira linha + corpo.
+6. Sempre entregue a mensagem pronta para copiar e colar.
+
+# Formato de resposta esperado
+
+Quando eu pedir um commit, responda assim:
+
+Mensagem:
+<primeira linha do commit>
+
+Corpo:
+<corpo do commit, se fizer sentido>
+
+Se o stage estiver misturando responsabilidades, responda assim:
+
+Observação:
+<explique de forma objetiva que o stage mistura responsabilidades e sugira split>
+
+Mensagem:
+<primeira linha do commit>
+
+Corpo:
+<corpo do commit, se fizer sentido>
