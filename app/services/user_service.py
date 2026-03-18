@@ -5,7 +5,7 @@ import uuid
 from app.exceptions import UserEmailAlreadyExistsError, UserNotFoundError
 from app.models import User
 from app.repositories import UserRepository
-from app.schemas.user import UserCreate, UserResponse, UserUpdate
+from app.schemas.user import UserCreate, UserListResponse, UserResponse, UserUpdate
 
 
 class UserService:
@@ -19,9 +19,16 @@ class UserService:
 
         return self._to_response(user)
 
-    async def list_users(self, *, limit: int, offset: int) -> list[UserResponse]:
+    async def list_users(self, *, limit: int, offset: int) -> UserListResponse:
         users = await self._repository.list_users(limit=limit, offset=offset)
-        return [self._to_response(user) for user in users]
+        total = await self._repository.count()
+
+        return UserListResponse(
+            items=[self._to_response(user) for user in users],
+            total=total,
+            limit=limit,
+            offset=offset
+        )
 
     async def create_user(self, payload: UserCreate) -> UserResponse:
         email = str(payload.email)

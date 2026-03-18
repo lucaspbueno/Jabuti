@@ -14,7 +14,6 @@ from starlette.exceptions import HTTPException
 from app.exceptions.base import AppError
 from app.schemas.error import ErrorContent, ErrorResponse
 
-
 RequestExceptionHandler = Callable[[Request, Exception], Awaitable[JSONResponse]]
 
 
@@ -59,7 +58,7 @@ async def validation_error_handler(
         status_code=422,
         code="validation_error",
         message="Erro de validação na requisição.",
-        details=list( exc.errors()),
+        details=list(exc.errors()),
     )
 
 

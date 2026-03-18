@@ -42,7 +42,7 @@ async def test_session_context_yields_and_closes_session() -> None:
     manager = DatabaseSessionManager(config)
 
     async def _use_session() -> None:
-        async for session in manager.session():
+        async with manager.session() as session:
             assert session.is_active
 
     await _use_session()

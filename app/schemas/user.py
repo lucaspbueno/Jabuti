@@ -66,3 +66,12 @@ class UserResponse(BaseModel):
     active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class UserListResponse(BaseModel):
+    """Resposta paginada simples da listagem de usuários."""
+
+    items: list[UserResponse]
+    total: int
+    limit: int
+    offset: int
