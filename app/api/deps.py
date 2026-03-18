@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.cache import CacheService, get_redis_client
 from app.core.config import Settings, get_settings
 from app.db.session import get_database_session_manager
 from app.repositories import UserRepository
@@ -17,6 +18,14 @@ def get_system_health_service(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> SystemHealthService:
     return SystemHealthService(settings)
+
+
+def get_cache_service(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> CacheService:
+    """Cria serviço de cache reutilizável com Redis."""
+
+    return CacheService(get_redis_client(), settings)
 
 
 async def get_read_db_session() -> AsyncIterator[AsyncSession]:
@@ -60,15 +69,17 @@ def get_write_user_repository(
 
 def get_read_user_service(
     repository: Annotated[UserRepository, Depends(get_read_user_repository)],
+    cache_service: Annotated[CacheService, Depends(get_cache_service)],
 ) -> UserService:
     """Cria service de usuário para operações de leitura."""
 
-    return UserService(repository)
+    return UserService(repository, cache_service)
 
 
 def get_write_user_service(
     repository: Annotated[UserRepository, Depends(get_write_user_repository)],
+    cache_service: Annotated[CacheService, Depends(get_cache_service)],
 ) -> UserService:
     """Cria service de usuário para operações de escrita."""
 
-    return UserService(repository)
+    return UserService(repository, cache_service)
