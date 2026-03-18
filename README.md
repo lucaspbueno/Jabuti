@@ -2,7 +2,7 @@
 
 API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti AGI.
 
-## Estado atual (Etapa 6)
+## Estado atual (Etapa 7)
 
 - Aplicação **FastAPI** com ponto de entrada `app.main:app` e factory `create_app()`.
 - **Settings** centralizados (`pydantic-settings`): `.env` + variáveis de ambiente; `DATABASE_URL` já utilizada para engine async e Alembic.
@@ -14,6 +14,7 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 - Schemas Pydantic da feature de usuário implementados em `app.schemas.user`: criação, atualização parcial e resposta pública.
 - Restrições compartilhadas da feature de usuário centralizadas em `app.constants.user`, evitando duplicação entre ORM e Pydantic.
 - Camada de persistência da feature implementada em `app.repositories.user_repository.UserRepository`.
+- Camada de negócio da feature implementada em `app.services.user_service.UserService`, com validação de unicidade de email e tratamento de usuário inexistente.
 
 *(Etapas anteriores: Poetry, estrutura de pastas, Docker Compose, smoke de dependências, healthcheck.)*
 
@@ -82,7 +83,7 @@ app/
 ├── models/           # ex.: User
 ├── schemas/          # health e contratos de usuário
 ├── repositories/     # ex.: UserRepository
-├── services/         # ex.: SystemHealthService
+├── services/         # health e UserService
 ├── cache/
 ├── exceptions/
 └── tests/
@@ -129,6 +130,18 @@ Operações disponíveis:
 
 Nesta etapa o repository usa `flush` e `refresh`, mas não faz `commit`; o controle transacional ficará para a camada superior.
 
+## Service de usuário
+
+`UserService` centraliza regras de negócio e orquestra o fluxo entre schemas e `UserRepository`, sem acesso direto ao banco e sem acoplamento ao FastAPI.
+
+Regras implementadas:
+
+- usuário precisa existir para busca individual, atualização e exclusão
+- não é permitido criar usuário com email já existente
+- não é permitido atualizar email para um valor já usado por outro usuário
+- respostas públicas continuam sem expor `password`
+- usuários excluídos logicamente deixam de aparecer nas consultas do repository
+
 ## Próximos passos
 
-Service da feature de usuário e orquestração do CRUD.
+Endpoints CRUD da feature de usuário e integração HTTP.
