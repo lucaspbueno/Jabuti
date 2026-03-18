@@ -11,7 +11,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from app.api.deps import get_user_service
+from app.api.deps import get_read_user_service, get_write_user_service
 from app.core.config import Settings
 from app.exceptions import UserNotFoundError
 from app.main import create_app
@@ -40,7 +40,8 @@ def users_test_app() -> tuple[Settings, FastAPI, AsyncMock]:
     )
     app = create_app(settings=settings)
     service = AsyncMock()
-    app.dependency_overrides[get_user_service] = lambda: service
+    app.dependency_overrides[get_read_user_service] = lambda: service
+    app.dependency_overrides[get_write_user_service] = lambda: service
     return settings, app, service
 
 
