@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 from app.models import User
-from app.schemas.user import UserCreate, UserListResponse, UserUpdate
+from app.schemas.user import UserCreate, UserUpdate
 from app.services import UserService
 
 
@@ -164,4 +164,3 @@ async def test_delete_user_invalidates_detail_and_list_cache() -> None:
 
     cache.delete.assert_awaited_once_with(f"users:detail:{user.id}")
     cache.delete_by_prefix.assert_awaited_once_with("users:list:")
-
