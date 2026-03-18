@@ -26,12 +26,19 @@ def get_redis_client() -> Redis[str]:
 
 
 async def close_redis_client() -> None:
-    """Fecha a conexão reutilizada do Redis, quando existir."""
+    """Fecha o cliente Redis reutilizado, se ele já tiver sido criado."""
 
     try:
         client = get_redis_client()
     except ValueError:
         return
 
-    await client.close()
-    get_redis_client.cache_clear()
+    try:
+        close_method = getattr(client, "aclose", None)
+
+        if close_method is None:
+            close_method = client.close
+
+        await close_method()
+    finally:
+        get_redis_client.cache_clear()
