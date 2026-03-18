@@ -1,7 +1,5 @@
 """Testes dos schemas Pydantic da feature de usuário."""
 
-from __future__ import annotations
-
 import uuid
 from datetime import UTC, datetime
 
