@@ -10,7 +10,7 @@ class DatabaseConfig:
         if settings.database_url is None:
             raise ValueError("DATABASE_URL não configurada nas settings.")
 
-        self._url   = settings.database_url
+        self._url = settings.database_url
         self._debug = settings.debug
 
     @property

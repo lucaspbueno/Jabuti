@@ -27,7 +27,7 @@ class UserService:
             items=[self._to_response(user) for user in users],
             total=total,
             limit=limit,
-            offset=offset
+            offset=offset,
         )
 
     async def create_user(self, payload: UserCreate) -> UserResponse:
