@@ -43,4 +43,5 @@ def create_app(settings: Settings) -> FastAPI:
 
     return Application(settings=settings).build()
 
+
 app = create_app(settings=get_settings())
