@@ -2,6 +2,7 @@
 
 import uuid
 
+from app.cache import CacheKeys, CacheService
 from app.exceptions import UserEmailAlreadyExistsError, UserNotFoundError
 from app.models import User
 from app.repositories import UserRepository
@@ -11,24 +12,40 @@ from app.schemas.user import UserCreate, UserListResponse, UserResponse, UserUpd
 class UserService:
     """Orquestra regras de negócio da feature de usuário."""
 
-    def __init__(self, repository: UserRepository) -> None:
+    def __init__(self, repository: UserRepository, cache_service: CacheService) -> None:
         self._repository = repository
+        self._cache_service = cache_service
 
     async def get_user_by_id(self, user_id: uuid.UUID) -> UserResponse:
-        user = await self._get_existing_user(user_id)
+        cached_response = await self._get_cached_user_detail(user_id)
 
-        return self._to_response(user)
+        if cached_response is not None:
+            return cached_response
+
+        user = await self._get_existing_user(user_id)
+        response = self._to_response(user)
+
+        await self._cache_user_detail(response)
+
+        return response
 
     async def list_users(self, *, limit: int, offset: int) -> UserListResponse:
+        cached_response = await self._get_cached_user_list(limit=limit, offset=offset)
+        if cached_response is not None:
+            return cached_response
+
         users = await self._repository.list_users(limit=limit, offset=offset)
         total = await self._repository.count()
 
-        return UserListResponse(
+        response = UserListResponse(
             items=[self._to_response(user) for user in users],
             total=total,
             limit=limit,
             offset=offset,
         )
+        await self._cache_user_list(response)
+
+        return response
 
     async def create_user(self, payload: UserCreate) -> UserResponse:
         email = str(payload.email)
@@ -41,7 +58,10 @@ class UserService:
             password=payload.password,
         )
 
-        return self._to_response(user)
+        response = self._to_response(user)
+        await self._invalidate_user_list_cache()
+
+        return response
 
     async def update_user(
         self,
@@ -61,12 +81,16 @@ class UserService:
             password=payload.password,
             active=payload.active,
         )
+        await self._invalidate_user_detail_cache(user_id)
+        await self._invalidate_user_list_cache()
 
         return self._to_response(updated_user)
 
     async def delete_user(self, user_id: uuid.UUID) -> UserResponse:
         user = await self._get_existing_user(user_id)
         deleted_user = await self._repository.delete(user)
+        await self._invalidate_user_detail_cache(user_id)
+        await self._invalidate_user_list_cache()
 
         return self._to_response(deleted_user)
 
@@ -97,3 +121,37 @@ class UserService:
     @staticmethod
     def _to_response(user: User) -> UserResponse:
         return UserResponse.model_validate(user)
+
+    async def _get_cached_user_detail(self, user_id: uuid.UUID) -> UserResponse | None:
+        payload = await self._cache_service.get_json(CacheKeys.user_detail(user_id))
+
+        if payload is None:
+            return None
+
+        return UserResponse.model_validate(payload)
+
+    async def _get_cached_user_list(self, *, limit: int, offset: int) -> UserListResponse | None:
+        payload = await self._cache_service.get_json(CacheKeys.users_list(limit, offset))
+
+        if payload is None:
+            return None
+
+        return UserListResponse.model_validate(payload)
+
+    async def _cache_user_detail(self, response: UserResponse) -> None:
+        key = CacheKeys.user_detail(response.id)
+        payload = response.model_dump(mode="json")
+
+        await self._cache_service.set_json(key, payload)
+
+    async def _cache_user_list(self, response: UserListResponse) -> None:
+        key = CacheKeys.users_list(response.limit, response.offset)
+        payload = response.model_dump(mode="json")
+
+        await self._cache_service.set_json(key, payload)
+
+    async def _invalidate_user_detail_cache(self, user_id: uuid.UUID) -> None:
+        await self._cache_service.delete(CacheKeys.user_detail(user_id))
+
+    async def _invalidate_user_list_cache(self) -> None:
+        await self._cache_service.delete_by_prefix(CacheKeys.users_list_prefix())

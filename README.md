@@ -2,7 +2,7 @@
 
 API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti AGI.
 
-## Estado atual (Etapa 10)
+## Estado atual (Etapa 11)
 
 - Aplicação **FastAPI** com ponto de entrada `app.main:app` e factory `create_app()`.
 - **Settings** centralizados (`pydantic-settings`): `.env` + variáveis de ambiente; `DATABASE_URL` já utilizada para engine async e Alembic.
@@ -21,6 +21,7 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 - Dependências de banco separadas entre leitura e escrita: rotas `GET` não fazem `commit`, enquanto mutações mantêm `commit/rollback` centralizados.
 - Testes de dependências da API cobrem os fluxos de sessão de leitura e escrita, incluindo `rollback` em erro.
 - Camada reutilizável de cache com Redis implementada em POO, com cliente async, serviço de cache JSON e padronização centralizada de chaves.
+- Cache Redis integrado à feature de usuários para detalhe e listagem, com invalidação consistente nas operações de escrita.
 
 *(Etapas anteriores: Poetry, estrutura de pastas, Docker Compose, smoke de dependências, healthcheck.)*
 
@@ -197,10 +198,33 @@ Operações disponíveis na camada de cache:
 Contrato atual do cache JSON:
 
 - o `CacheService` salva e lê sempre um objeto JSON (`dict`)
-- para listas, o conteúdo deve ser encapsulado em um envelope, por exemplo: `{"data": [...]}`
+- os endpoints de listagem usam `UserListResponse` como envelope serializado
 - isso evita ambiguidade entre `dict` e `list` e simplifica a tipagem da camada
 
-Nesta etapa a camada foi preparada para integração futura com os endpoints `GET`, mas sem ainda aplicar a invalidação nas operações de escrita.
+## Integração do cache na feature de usuários
+
+O cache foi integrado na `UserService`, mantendo:
+
+- rotas finas
+- repository focado em banco
+- chaves, serialização e invalidação concentradas em um único ponto de orquestração
+- `CacheService` como dependência obrigatória do `UserService`, sem fallback nulo dentro da regra de negócio
+
+Leituras com cache:
+
+- `GET /users/{user_id}` usa `users:detail:{id}`
+- `GET /users?limit=X&offset=Y` usa `users:list:{limit}:{offset}`
+
+Estratégia de invalidação:
+
+- `create_user` -> invalida todo cache de listagem
+- `update_user` -> invalida detalhe do usuário + todo cache de listagem
+- `delete_user` -> invalida detalhe do usuário + todo cache de listagem
+
+Decisão de contrato desta etapa:
+
+- o `UserService` sempre recebe `UserRepository` e `CacheService`
+- testes unitários do service também injetam mock de cache para refletir o mesmo contrato da aplicação
 
 ## Tratamento de erros
 
@@ -235,4 +259,4 @@ Casos já cobertos:
 
 ## Próximos passos
 
-Invalidação de cache nas operações de escrita da feature de usuário.
+Ajustes finais, migrations de domínio e fechamento do projeto.

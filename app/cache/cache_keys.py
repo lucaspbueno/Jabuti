@@ -13,5 +13,9 @@ class CacheKeys:
         return f"users:detail:{user_id}"
 
     @staticmethod
+    def users_list_prefix() -> str:
+        return "users:list:"
+
+    @staticmethod
     def users_list(limit: int, offset: int) -> str:
-        return f"users:list:{limit}:{offset}"
+        return f"{CacheKeys.users_list_prefix()}{limit}:{offset}"
