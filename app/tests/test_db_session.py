@@ -1,6 +1,5 @@
 """Testes da infraestrutura de banco (sem model de domínio)."""
 
-
 import pytest
 
 from app.core import Settings
@@ -47,4 +46,3 @@ async def test_session_context_yields_and_closes_session() -> None:
             assert session.is_active
 
     await _use_session()
-
