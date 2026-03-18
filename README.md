@@ -2,7 +2,7 @@
 
 API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti AGI.
 
-## Estado atual (Etapa 5)
+## Estado atual (Etapa 6)
 
 - Aplicação **FastAPI** com ponto de entrada `app.main:app` e factory `create_app()`.
 - **Settings** centralizados (`pydantic-settings`): `.env` + variáveis de ambiente; `DATABASE_URL` já utilizada para engine async e Alembic.
@@ -13,6 +13,7 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 - Model de domínio **`User`** definido em `app.models.user` (tabela `user`, colunas próprias + herança de campos comuns da `Base`).
 - Schemas Pydantic da feature de usuário implementados em `app.schemas.user`: criação, atualização parcial e resposta pública.
 - Restrições compartilhadas da feature de usuário centralizadas em `app.constants.user`, evitando duplicação entre ORM e Pydantic.
+- Camada de persistência da feature implementada em `app.repositories.user_repository.UserRepository`.
 
 *(Etapas anteriores: Poetry, estrutura de pastas, Docker Compose, smoke de dependências, healthcheck.)*
 
@@ -80,7 +81,7 @@ app/
 ├── db/               # Base ORM + engine/sessão async
 ├── models/           # ex.: User
 ├── schemas/          # health e contratos de usuário
-├── repositories/
+├── repositories/     # ex.: UserRepository
 ├── services/         # ex.: SystemHealthService
 ├── cache/
 ├── exceptions/
@@ -112,6 +113,22 @@ Validações já implementadas:
 - `password` não aparece em schemas de saída
 - limites compartilhados de `User` centralizados em um único módulo reutilizado por `model` e `schemas`
 
+## Repository de usuário
+
+`UserRepository` concentra apenas acesso a dados com `AsyncSession`, sem regra de negócio e sem acoplamento ao FastAPI.
+
+Operações disponíveis:
+
+- `get_by_id`
+- `get_by_email`
+- `list_users(limit, offset)`
+- `count()`
+- `create(...)`
+- `update(...)`
+- `delete(...)`
+
+Nesta etapa o repository usa `flush` e `refresh`, mas não faz `commit`; o controle transacional ficará para a camada superior.
+
 ## Próximos passos
 
-Repository, service e endpoints CRUD da feature de usuário.
+Service da feature de usuário e orquestração do CRUD.
