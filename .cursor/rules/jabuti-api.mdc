@@ -170,3 +170,22 @@ Regras obrigatórias para cada etapa:
    - como o README.md foi atualizado
    - quais testes foram criados
    - quais testes ainda não fazem sentido naquela fase
+
+# Orientação de POO
+
+Este projeto deve seguir uma abordagem orientada a objetos em toda a estrutura, de forma consistente e pragmática.
+
+Diretrizes obrigatórias:
+1. Use classes em todas as camadas principais do projeto.
+2. Models ORM devem ser classes.
+3. Schemas Pydantic devem ser classes.
+4. Settings e configuração devem ser implementados com classes.
+5. Repositories devem ser implementados como classes.
+6. Services devem ser implementados como classes.
+7. A camada de cache deve ser implementada com classes.
+8. Gerenciamento de banco e dependências também pode usar classes quando isso melhorar a organização.
+9. Cada classe deve ter responsabilidade clara e bem definida.
+10. Prefira composição em vez de herança.
+11. Evite abstrações prematuras e hierarquias complexas.
+12. Não criar classes genéricas demais sem necessidade real.
+13. A POO deve melhorar legibilidade, organização e manutenção do projeto.
