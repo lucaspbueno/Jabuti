@@ -16,6 +16,7 @@ class UserRepository:
         self._session = session
 
     async def get_by_id(self, user_id: uuid.UUID) -> User | None:
+        # fmt: off
         statement = (
             select(User)
             .where(
@@ -23,11 +24,13 @@ class UserRepository:
                 User.deleted_at.is_(None),
             )
         )
+        # fmt: on
         result = await self._session.execute(statement)
 
         return result.scalar_one_or_none()
 
     async def get_by_email(self, email: str) -> User | None:
+        # fmt: off
         statement = (
             select(User)
             .where(
@@ -35,11 +38,13 @@ class UserRepository:
                 User.deleted_at.is_(None),
             )
         )
+        # fmt: on
         result = await self._session.execute(statement)
 
         return result.scalar_one_or_none()
 
     async def list_users(self, *, limit: int, offset: int) -> list[User]:
+        # fmt: off
         statement = (
             select(User)
             .where(User.deleted_at.is_(None))
@@ -47,16 +52,19 @@ class UserRepository:
             .limit(limit)
             .offset(offset)
         )
+        # fmt: on
         result = await self._session.execute(statement)
 
         return list(result.scalars().all())
 
     async def count(self) -> int:
+        # fmt: off
         statement = (
             select(func.count())
             .select_from(User)
             .where(User.deleted_at.is_(None))
         )
+        # fmt: on
         result = await self._session.execute(statement)
 
         return int(result.scalar_one())
