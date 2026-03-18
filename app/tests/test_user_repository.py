@@ -1,7 +1,5 @@
 """Testes unitários do `UserRepository`."""
 
-from __future__ import annotations
-
 import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock
@@ -133,12 +131,15 @@ async def test_update_changes_only_informed_fields() -> None:
     session.refresh.assert_awaited_once_with(user)
 
 
-async def test_delete_calls_session_delete_and_flush() -> None:
+async def test_delete_soft_deletes_user_and_flushes() -> None:
     session = make_session()
     repository = UserRepository(session)
     user = make_user()
 
-    await repository.delete(user)
+    deleted = await repository.delete(user)
 
-    session.delete.assert_awaited_once_with(user)
+    assert deleted is user
+    assert user.active is False
+    assert user.deleted_at is not None
     session.flush.assert_awaited_once()
+    session.refresh.assert_awaited_once_with(user)
