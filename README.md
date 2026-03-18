@@ -2,15 +2,16 @@
 
 API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti AGI.
 
-## Estado atual (Etapa 2)
+## Estado atual (Etapa 3)
 
 - Aplicação **FastAPI** com ponto de entrada `app.main:app` e factory `create_app()`.
-- **Settings** centralizados (`pydantic-settings`): `.env` + variáveis de ambiente; campos opcionais `DATABASE_URL` e `REDIS_URL` para etapas futuras.
+- **Settings** centralizados (`pydantic-settings`): `.env` + variáveis de ambiente; `DATABASE_URL` já utilizada para engine async e Alembic.
 - Endpoint **`GET {API_PREFIX}/health`** (padrão `/api/v1/health`) com resposta JSON (`status`, `app_name`, `environment`).
 - Camadas: schema `HealthStatusResponse` → `SystemHealthService` → rota (sem banco, Redis ou CRUD).
 - Arquivo **`.env.example`** na raiz do projeto.
+- Infra de persistência configurada: **SQLAlchemy 2 async** (`Base`), engine e sessão async, integração com **Alembic**.
 
-*(Etapa 1: Poetry, pastas, Docker Compose, smoke de dependências — mantidos.)*
+*(Etapas anteriores: Poetry, estrutura de pastas, Docker Compose, smoke de dependências, healthcheck.)*
 
 ## Stack
 
@@ -56,9 +57,9 @@ Credenciais padrão do Postgres no compose: usuário `jabuti`, senha `jabuti`, b
 ## Qualidade e testes
 
 ```bash
-poetry run ruff check app
-poetry run ruff format --check app
-poetry run mypy app
+poetry run ruff check app alembic
+poetry run ruff format --check app alembic
+poetry run mypy app alembic
 poetry run pytest
 ```
 
@@ -72,7 +73,7 @@ app/
 │   ├── router.py
 │   └── routes/       # health, ...
 ├── core/             # Settings
-├── db/               # (etapas seguintes)
+├── db/               # Base ORM + engine/sessão async
 ├── models/
 ├── schemas/
 ├── repositories/
@@ -82,6 +83,17 @@ app/
 └── tests/
 ```
 
+## Migrations (Alembic)
+
+Com o `.env` configurado (incluindo `DATABASE_URL`):
+
+```bash
+poetry run alembic revision -m "criar tabela X"
+poetry run alembic upgrade head
+```
+
+Nesta etapa ainda **não** há models de domínio nem migrations de negócio; o Alembic está apenas preparado.
+
 ## Próximos passos
 
-Banco async, Alembic e sessão SQLAlchemy (Etapa 3).
+Model `User`, schemas Pydantic e repositórios/serviços para o CRUD.
