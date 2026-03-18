@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.api.router import api_router
 from app.core.config import Settings, get_settings
+from app.exceptions import register_exception_handlers
 
 
 class Application:
@@ -17,6 +18,7 @@ class Application:
             title=self._settings.app_name,
             debug=self._settings.debug,
         )
+        register_exception_handlers(app)
         app.include_router(
             api_router,
             prefix=self._settings.api_prefix.rstrip("/") or "",

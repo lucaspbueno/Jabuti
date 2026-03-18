@@ -2,11 +2,8 @@ from logging.config import fileConfig
 from typing import Any
 
 from alembic import context
-from app import (
-    models,  # noqa: F401 - garante que modelos sejam registrados em Base.metadata
-)
+from app import models
 from app.core.config import get_settings
-from app.db.base import Base
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncEngine, async_engine_from_config
@@ -16,7 +13,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = Base.metadata
+target_metadata = models.Base.metadata
 
 
 def _get_url() -> str:

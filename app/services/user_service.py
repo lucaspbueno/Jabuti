@@ -36,27 +36,29 @@ class UserService:
 
         return self._to_response(user)
 
-    async def update_user(self, user_id: uuid.UUID, payload: UserUpdate) -> UserResponse:
-        user  = await self._get_existing_user(user_id)
+    async def update_user(
+        self,
+        user_id: uuid.UUID,
+        payload: UserUpdate,
+    ) -> UserResponse:
+        user = await self._get_existing_user(user_id)
         email = str(payload.email) if payload.email is not None else None
 
         if email:
             await self._ensure_email_is_available_for_update(email, user_id)
 
-        updated_user = await (
-            self._repository.update(
-                user,
-                name=payload.name,
-                email=email,
-                password=payload.password,
-                active=payload.active,
-            )
+        updated_user = await self._repository.update(
+            user,
+            name=payload.name,
+            email=email,
+            password=payload.password,
+            active=payload.active,
         )
 
         return self._to_response(updated_user)
 
     async def delete_user(self, user_id: uuid.UUID) -> UserResponse:
-        user         = await self._get_existing_user(user_id)
+        user = await self._get_existing_user(user_id)
         deleted_user = await self._repository.delete(user)
 
         return self._to_response(deleted_user)
@@ -75,7 +77,11 @@ class UserService:
         if existing_user is not None:
             raise UserEmailAlreadyExistsError(email)
 
-    async def _ensure_email_is_available_for_update(self, email: str, user_id: uuid.UUID) -> None:
+    async def _ensure_email_is_available_for_update(
+        self,
+        email: str,
+        user_id: uuid.UUID,
+    ) -> None:
         existing_user = await self._repository.get_by_email(email)
 
         if existing_user and existing_user.id != user_id:

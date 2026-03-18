@@ -4,7 +4,7 @@ from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.constants import UserConstraints
-from app.db.base import Base
+from app.models.base import Base
 
 
 class User(Base):
