@@ -2,7 +2,7 @@
 
 API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti AGI.
 
-## Estado atual (Etapa 9)
+## Estado atual (Etapa 10)
 
 - Aplicação **FastAPI** com ponto de entrada `app.main:app` e factory `create_app()`.
 - **Settings** centralizados (`pydantic-settings`): `.env` + variáveis de ambiente; `DATABASE_URL` já utilizada para engine async e Alembic.
@@ -20,6 +20,7 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 - Endpoints CRUD da feature de usuário implementados com FastAPI, usando `UserService` por injeção de dependência.
 - Dependências de banco separadas entre leitura e escrita: rotas `GET` não fazem `commit`, enquanto mutações mantêm `commit/rollback` centralizados.
 - Testes de dependências da API cobrem os fluxos de sessão de leitura e escrita, incluindo `rollback` em erro.
+- Camada reutilizável de cache com Redis implementada em POO, com cliente async, serviço de cache JSON e padronização centralizada de chaves.
 
 *(Etapas anteriores: Poetry, estrutura de pastas, Docker Compose, smoke de dependências, healthcheck.)*
 
@@ -89,7 +90,7 @@ app/
 ├── schemas/          # health e contratos de usuário
 ├── repositories/     # ex.: UserRepository
 ├── services/         # health e UserService
-├── cache/
+├── cache/            # cliente Redis, serviço e chaves de cache
 ├── exceptions/       # domínio + handlers globais
 └── tests/
 ```
@@ -168,6 +169,39 @@ Decisões desta etapa:
 - `password` nunca aparece nas respostas
 - erros de domínio seguem sendo traduzidos pelos handlers globais
 
+## Camada de cache
+
+Componentes implementados:
+
+- `redis_client.py`: cliente Redis async reutilizável
+- `cache_service.py`: leitura, escrita e remoção de dados JSON com TTL
+- `cache_keys.py`: geração padronizada de chaves da aplicação
+
+Configurações disponíveis:
+
+- `REDIS_URL`
+- `REDIS_CACHE_TTL_SECONDS`
+
+Padrões de chave já definidos:
+
+- `users:detail:{id}`
+- `users:list:{limit}:{offset}`
+
+Operações disponíveis na camada de cache:
+
+- `get_json(key)`
+- `set_json(key, value, ttl_seconds=None)`
+- `delete(key)`
+- `delete_by_prefix(prefix)`
+
+Contrato atual do cache JSON:
+
+- o `CacheService` salva e lê sempre um objeto JSON (`dict`)
+- para listas, o conteúdo deve ser encapsulado em um envelope, por exemplo: `{"data": [...]}`
+- isso evita ambiguidade entre `dict` e `list` e simplifica a tipagem da camada
+
+Nesta etapa a camada foi preparada para integração futura com os endpoints `GET`, mas sem ainda aplicar a invalidação nas operações de escrita.
+
 ## Tratamento de erros
 
 As regras de negócio continuam lançando exceções de domínio, sem acoplamento com `HTTPException`.
@@ -201,4 +235,4 @@ Casos já cobertos:
 
 ## Próximos passos
 
-Redis e camada de cache para os endpoints de usuário.
+Invalidação de cache nas operações de escrita da feature de usuário.
