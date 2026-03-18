@@ -2,7 +2,7 @@
 
 API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti AGI.
 
-## Estado atual (Etapa 3)
+## Estado atual (Etapa 4)
 
 - Aplicação **FastAPI** com ponto de entrada `app.main:app` e factory `create_app()`.
 - **Settings** centralizados (`pydantic-settings`): `.env` + variáveis de ambiente; `DATABASE_URL` já utilizada para engine async e Alembic.
@@ -10,6 +10,7 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 - Camadas: schema `HealthStatusResponse` → `SystemHealthService` → rota (sem banco, Redis ou CRUD).
 - Arquivo **`.env.example`** na raiz do projeto.
 - Infra de persistência configurada: **SQLAlchemy 2 async** (`Base`), engine e sessão async, integração com **Alembic**.
+- Model de domínio **`User`** definido em `app.models.user` (UUID, name, email único, password, timestamps).
 
 *(Etapas anteriores: Poetry, estrutura de pastas, Docker Compose, smoke de dependências, healthcheck.)*
 
@@ -74,7 +75,7 @@ app/
 │   └── routes/       # health, ...
 ├── core/             # Settings
 ├── db/               # Base ORM + engine/sessão async
-├── models/
+├── models/           # ex.: User
 ├── schemas/
 ├── repositories/
 ├── services/         # ex.: SystemHealthService
