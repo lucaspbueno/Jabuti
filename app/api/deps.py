@@ -19,8 +19,17 @@ def get_system_health_service(
     return SystemHealthService(settings)
 
 
-async def get_db_session() -> AsyncIterator[AsyncSession]:
-    """Fornece sessão transacional por requisição."""
+async def get_read_db_session() -> AsyncIterator[AsyncSession]:
+    """Fornece sessão somente para leitura, sem commit automático."""
+
+    session_manager = get_database_session_manager()
+
+    async with session_manager.session() as session:
+        yield session
+
+
+async def get_write_db_session() -> AsyncIterator[AsyncSession]:
+    """Fornece sessão transacional para operações de escrita."""
 
     session_manager = get_database_session_manager()
 
@@ -33,13 +42,33 @@ async def get_db_session() -> AsyncIterator[AsyncSession]:
             raise
 
 
-def get_user_repository(
-    session: Annotated[AsyncSession, Depends(get_db_session)],
+def get_read_user_repository(
+    session: Annotated[AsyncSession, Depends(get_read_db_session)],
 ) -> UserRepository:
+    """Cria repositório de usuário com sessão de leitura."""
+
     return UserRepository(session)
 
 
-def get_user_service(
-    repository: Annotated[UserRepository, Depends(get_user_repository)],
+def get_write_user_repository(
+    session: Annotated[AsyncSession, Depends(get_write_db_session)],
+) -> UserRepository:
+    """Cria repositório de usuário com sessão transacional."""
+
+    return UserRepository(session)
+
+
+def get_read_user_service(
+    repository: Annotated[UserRepository, Depends(get_read_user_repository)],
 ) -> UserService:
+    """Cria service de usuário para operações de leitura."""
+
+    return UserService(repository)
+
+
+def get_write_user_service(
+    repository: Annotated[UserRepository, Depends(get_write_user_repository)],
+) -> UserService:
+    """Cria service de usuário para operações de escrita."""
+
     return UserService(repository)
