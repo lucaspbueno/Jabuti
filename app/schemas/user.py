@@ -54,6 +54,7 @@ class UserUpdate(BaseModel):
 
         return self
 
+
 class UserResponse(BaseModel):
     """Resposta pública da entidade de usuário."""
 
