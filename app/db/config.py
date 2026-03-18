@@ -15,4 +15,3 @@ class DatabaseConfig:
     @property
     def url(self) -> str:
         return self._url
-

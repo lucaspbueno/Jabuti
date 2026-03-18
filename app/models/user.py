@@ -3,6 +3,7 @@
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.constants import UserConstraints
 from app.db.base import Base
 
 
@@ -11,12 +12,17 @@ class User(Base):
 
     __tablename__ = "user"
 
-    name: Mapped[str] = mapped_column(String(length=255), nullable=False)
+    name: Mapped[str] = mapped_column(
+        String(length=UserConstraints.NAME_MAX_LENGTH),
+        nullable=False,
+    )
     email: Mapped[str] = mapped_column(
-        String(length=255),
+        String(length=UserConstraints.EMAIL_MAX_LENGTH),
         nullable=False,
         unique=True,
         index=True,
     )
-    password: Mapped[str] = mapped_column(String(length=255), nullable=False)
-
+    password: Mapped[str] = mapped_column(
+        String(length=UserConstraints.PASSWORD_MAX_LENGTH),
+        nullable=False,
+    )

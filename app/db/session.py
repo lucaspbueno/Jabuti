@@ -51,4 +51,3 @@ class DatabaseSessionManager:
             yield session
         finally:
             await session.close()
-
