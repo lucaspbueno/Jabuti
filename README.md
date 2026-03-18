@@ -2,7 +2,7 @@
 
 API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti AGI.
 
-## Estado atual (Etapa 11)
+## Estado atual (Etapa 12)
 
 - Aplicação **FastAPI** com ponto de entrada `app.main:app` e factory `create_app()`.
 - **Settings** centralizados (`pydantic-settings`): `.env` + variáveis de ambiente; `DATABASE_URL` já utilizada para engine async e Alembic.
@@ -22,6 +22,7 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 - Testes de dependências da API cobrem os fluxos de sessão de leitura e escrita, incluindo `rollback` em erro.
 - Camada reutilizável de cache com Redis implementada em POO, com cliente async, serviço de cache JSON e padronização centralizada de chaves.
 - Cache Redis integrado à feature de usuários para detalhe e listagem, com invalidação consistente nas operações de escrita.
+- Cobertura automatizada atual focada em testes unitários e de serviço, validando regras da API e comportamento de cache sem exigir banco e Redis dedicados para teste.
 
 *(Etapas anteriores: Poetry, estrutura de pastas, Docker Compose, smoke de dependências, healthcheck.)*
 
@@ -75,6 +76,8 @@ poetry run mypy app alembic
 poetry run pytest
 ```
 
+A suíte atual de testes não exige banco nem Redis dedicados. Os cenários de cache e regras de negócio cobertos hoje usam mocks nos testes de serviço.
+
 ## Estrutura do pacote `app`
 
 ```
@@ -93,7 +96,7 @@ app/
 ├── services/         # health e UserService
 ├── cache/            # cliente Redis, serviço e chaves de cache
 ├── exceptions/       # domínio + handlers globais
-└── tests/
+└── tests/            # testes unitários, de serviço e de composição da aplicação
 ```
 
 ## Migrations (Alembic)
@@ -226,6 +229,14 @@ Decisão de contrato desta etapa:
 - o `UserService` sempre recebe `UserRepository` e `CacheService`
 - testes unitários do service também injetam mock de cache para refletir o mesmo contrato da aplicação
 
+## Cobertura de testes atual
+
+A cobertura automatizada atual prioriza cenários que podem ser validados sem infraestrutura dedicada:
+
+- testes de service para CRUD de usuários e regras de negócio
+- testes de cache na `UserService` com mocks para leitura, preenchimento e invalidação
+- testes de rotas, handlers, dependências e smoke tests da aplicação
+
 ## Tratamento de erros
 
 As regras de negócio continuam lançando exceções de domínio, sem acoplamento com `HTTPException`.
@@ -259,4 +270,4 @@ Casos já cobertos:
 
 ## Próximos passos
 
-Ajustes finais, migrations de domínio e fechamento do projeto.
+Ajustes finais, revisão do projeto e README de entrega.
