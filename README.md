@@ -2,7 +2,7 @@
 
 API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti AGI.
 
-## Estado atual (Etapa 8)
+## Estado atual (Etapa 9)
 
 - Aplicação **FastAPI** com ponto de entrada `app.main:app` e factory `create_app()`.
 - **Settings** centralizados (`pydantic-settings`): `.env` + variáveis de ambiente; `DATABASE_URL` já utilizada para engine async e Alembic.
@@ -10,12 +10,16 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 - Camadas: schema `HealthStatusResponse` → `SystemHealthService` → rota (sem banco, Redis ou CRUD).
 - Arquivo **`.env.example`** na raiz do projeto.
 - Infra de persistência configurada: **SQLAlchemy 2 async** (`Base`), engine e sessão async, integração com **Alembic**.
+- Gerenciador de sessão do banco mantido em POO, com contexto assíncrono para abrir/fechar sessões por requisição sem expor iteração no consumo.
 - Model de domínio **`User`** definido em `app.models.user` (tabela `user`, colunas próprias + herança de campos comuns da `Base`).
 - Schemas Pydantic da feature de usuário implementados em `app.schemas.user`: criação, atualização parcial e resposta pública.
 - Restrições compartilhadas da feature de usuário centralizadas em `app.constants.user`, evitando duplicação entre ORM e Pydantic.
 - Camada de persistência da feature implementada em `app.repositories.user_repository.UserRepository`.
 - Camada de negócio da feature implementada em `app.services.user_service.UserService`, com validação de unicidade de email e tratamento de usuário inexistente.
 - Tratamento global de erros implementado com exceptions de domínio e handlers padronizados no FastAPI.
+- Endpoints CRUD da feature de usuário implementados com FastAPI, usando `UserService` por injeção de dependência.
+- Dependências de banco separadas entre leitura e escrita: rotas `GET` não fazem `commit`, enquanto mutações mantêm `commit/rollback` centralizados.
+- Testes de dependências da API cobrem os fluxos de sessão de leitura e escrita, incluindo `rollback` em erro.
 
 *(Etapas anteriores: Poetry, estrutura de pastas, Docker Compose, smoke de dependências, healthcheck.)*
 
@@ -75,9 +79,9 @@ poetry run pytest
 app/
 ├── main.py           # FastAPI / Application
 ├── api/
-│   ├── deps.py       # dependências das rotas
+│   ├── deps.py       # composição de session/repository/service
 │   ├── router.py
-│   └── routes/       # health, ...
+│   └── routes/       # health, users
 ├── core/             # Settings
 ├── constants/        # constantes compartilhadas por feature
 ├── db/               # Base ORM + engine/sessão async
@@ -106,6 +110,7 @@ Nesta etapa ainda **não** há migrations de negócio aplicadas; o Alembic está
 - `UserCreate`: `name`, `email`, `password`
 - `UserUpdate`: atualização parcial de `name`, `email`, `password` e `active`
 - `UserResponse`: `id`, `name`, `email`, `active`, `created_at`, `updated_at`
+- `UserListResponse`: `items`, `total`, `limit`, `offset`
 
 Validações já implementadas:
 
@@ -129,7 +134,7 @@ Operações disponíveis:
 - `update(...)`
 - `delete(...)`
 
-Nesta etapa o repository usa `flush` e `refresh`, mas não faz `commit`; o controle transacional ficará para a camada superior.
+Nesta etapa o repository usa `flush` e `refresh`, mas não faz `commit`; o controle transacional fica centralizado nas dependências de escrita.
 
 ## Service de usuário
 
@@ -142,6 +147,26 @@ Regras implementadas:
 - não é permitido atualizar email para um valor já usado por outro usuário
 - respostas públicas continuam sem expor `password`
 - usuários excluídos logicamente deixam de aparecer nas consultas do repository
+
+## Endpoints de usuário
+
+Rotas disponíveis:
+
+- `POST /api/v1/users`
+- `GET /api/v1/users/{user_id}`
+- `GET /api/v1/users?limit=10&offset=0`
+- `PUT /api/v1/users/{user_id}`
+- `DELETE /api/v1/users/{user_id}`
+
+Decisões desta etapa:
+
+- rotas finas, sem regra de negócio
+- composição via dependências: `AsyncSession` -> `UserRepository` -> `UserService`
+- rotas de leitura usam sessão sem `commit` automático; rotas de escrita usam sessão transacional com `commit/rollback`
+- `limit` e `offset` em query params, com validação simples no FastAPI
+- listagem retorna envelope paginado simples com `items`, `total`, `limit` e `offset`
+- `password` nunca aparece nas respostas
+- erros de domínio seguem sendo traduzidos pelos handlers globais
 
 ## Tratamento de erros
 
@@ -176,4 +201,4 @@ Casos já cobertos:
 
 ## Próximos passos
 
-Endpoints CRUD da feature de usuário consumindo `UserService` e os handlers globais.
+Redis e camada de cache para os endpoints de usuário.
