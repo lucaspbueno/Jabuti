@@ -2,12 +2,15 @@
 
 API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti AGI.
 
-## Estado atual (Etapa 1)
+## Estado atual (Etapa 2)
 
-- Estrutura de pastas em camadas (`routes` → `services` → `repositories`).
-- **Poetry** com dependências de runtime e desenvolvimento.
-- **Docker Compose** com PostgreSQL e Redis (apenas infraestrutura local; a app ainda não se conecta a eles).
-- Sem aplicação FastAPI, banco, models ou endpoints nesta etapa.
+- Aplicação **FastAPI** com ponto de entrada `app.main:app` e factory `create_app()`.
+- **Settings** centralizados (`pydantic-settings`): `.env` + variáveis de ambiente; campos opcionais `DATABASE_URL` e `REDIS_URL` para etapas futuras.
+- Endpoint **`GET {API_PREFIX}/health`** (padrão `/api/v1/health`) com resposta JSON (`status`, `app_name`, `environment`).
+- Camadas: schema `HealthStatusResponse` → `SystemHealthService` → rota (sem banco, Redis ou CRUD).
+- Arquivo **`.env.example`** na raiz do projeto.
+
+*(Etapa 1: Poetry, pastas, Docker Compose, smoke de dependências — mantidos.)*
 
 ## Stack
 
@@ -30,7 +33,17 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 ```bash
 cd Jabuti
 poetry install
+cp .env.example .env   # opcional; ajuste variáveis
 ```
+
+## Executar a API
+
+```bash
+poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+- Documentação interativa: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- Healthcheck: [http://127.0.0.1:8000/api/v1/health](http://127.0.0.1:8000/api/v1/health) (se `API_PREFIX` for o padrão)
 
 ## Infraestrutura local (Postgres + Redis)
 
@@ -53,13 +66,17 @@ poetry run pytest
 
 ```
 app/
-├── api/routes/   # rotas FastAPI
-├── core/         # configuração central
-├── db/           # sessão e engine (etapas seguintes)
+├── main.py           # FastAPI / Application
+├── api/
+│   ├── deps.py       # dependências das rotas
+│   ├── router.py
+│   └── routes/       # health, ...
+├── core/             # Settings
+├── db/               # (etapas seguintes)
 ├── models/
 ├── schemas/
 ├── repositories/
-├── services/
+├── services/         # ex.: SystemHealthService
 ├── cache/
 ├── exceptions/
 └── tests/
@@ -67,4 +84,4 @@ app/
 
 ## Próximos passos
 
-Configuração base da aplicação FastAPI, depois banco async e Alembic (conforme roteiro do projeto).
+Banco async, Alembic e sessão SQLAlchemy (Etapa 3).
