@@ -1,5 +1,7 @@
 """Testes unitários do `UserService`."""
 
+from __future__ import annotations
+
 import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
@@ -52,18 +54,23 @@ async def test_get_user_by_id_raises_when_user_does_not_exist() -> None:
         await service.get_user_by_id(user_id)
 
 
-async def test_list_users_returns_response_list() -> None:
+async def test_list_users_returns_paginated_response() -> None:
     repository = make_repository()
     users = [make_user(email="a@example.com"), make_user(email="b@example.com")]
     repository.list_users.return_value = users
+    repository.count.return_value = 2
     service = UserService(repository)
 
     response = await service.list_users(limit=10, offset=0)
 
-    assert len(response) == 2
-    assert response[0].email == "a@example.com"
-    assert response[1].email == "b@example.com"
+    assert response.total == 2
+    assert response.limit == 10
+    assert response.offset == 0
+    assert len(response.items) == 2
+    assert response.items[0].email == "a@example.com"
+    assert response.items[1].email == "b@example.com"
     repository.list_users.assert_awaited_once_with(limit=10, offset=0)
+    repository.count.assert_awaited_once_with()
 
 
 async def test_create_user_raises_when_email_already_exists() -> None:
