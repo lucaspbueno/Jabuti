@@ -2,7 +2,7 @@
 
 API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti AGI.
 
-## Estado atual (Etapa 4)
+## Estado atual (Etapa 5)
 
 - Aplicação **FastAPI** com ponto de entrada `app.main:app` e factory `create_app()`.
 - **Settings** centralizados (`pydantic-settings`): `.env` + variáveis de ambiente; `DATABASE_URL` já utilizada para engine async e Alembic.
@@ -10,7 +10,9 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 - Camadas: schema `HealthStatusResponse` → `SystemHealthService` → rota (sem banco, Redis ou CRUD).
 - Arquivo **`.env.example`** na raiz do projeto.
 - Infra de persistência configurada: **SQLAlchemy 2 async** (`Base`), engine e sessão async, integração com **Alembic**.
-- Model de domínio **`User`** definido em `app.models.user` (UUID, name, email único, password, timestamps).
+- Model de domínio **`User`** definido em `app.models.user` (tabela `user`, colunas próprias + herança de campos comuns da `Base`).
+- Schemas Pydantic da feature de usuário implementados em `app.schemas.user`: criação, atualização parcial e resposta pública.
+- Restrições compartilhadas da feature de usuário centralizadas em `app.constants.user`, evitando duplicação entre ORM e Pydantic.
 
 *(Etapas anteriores: Poetry, estrutura de pastas, Docker Compose, smoke de dependências, healthcheck.)*
 
@@ -74,9 +76,10 @@ app/
 │   ├── router.py
 │   └── routes/       # health, ...
 ├── core/             # Settings
+├── constants/        # constantes compartilhadas por feature
 ├── db/               # Base ORM + engine/sessão async
 ├── models/           # ex.: User
-├── schemas/
+├── schemas/          # health e contratos de usuário
 ├── repositories/
 ├── services/         # ex.: SystemHealthService
 ├── cache/
@@ -93,8 +96,22 @@ poetry run alembic revision -m "criar tabela X"
 poetry run alembic upgrade head
 ```
 
-Nesta etapa ainda **não** há models de domínio nem migrations de negócio; o Alembic está apenas preparado.
+Nesta etapa ainda **não** há migrations de negócio aplicadas; o Alembic está preparado para enxergar os models quando elas forem criadas.
+
+## Contratos de usuário
+
+- `UserCreate`: `name`, `email`, `password`
+- `UserUpdate`: atualização parcial de `name`, `email`, `password` e `active`
+- `UserResponse`: `id`, `name`, `email`, `active`, `created_at`, `updated_at`
+
+Validações já implementadas:
+
+- `email` válido com `EmailStr`
+- `password` obrigatória na criação e com tamanho mínimo
+- `UserUpdate` exige pelo menos um campo informado
+- `password` não aparece em schemas de saída
+- limites compartilhados de `User` centralizados em um único módulo reutilizado por `model` e `schemas`
 
 ## Próximos passos
 
-Model `User`, schemas Pydantic e repositórios/serviços para o CRUD.
+Repository, service e endpoints CRUD da feature de usuário.
