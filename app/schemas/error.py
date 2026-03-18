@@ -1,7 +1,5 @@
 """Schemas de resposta de erro da aplicação."""
 
-from typing import Any
-
 from pydantic import BaseModel
 from pydantic_core import ErrorDetails
 
