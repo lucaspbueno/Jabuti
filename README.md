@@ -2,7 +2,7 @@
 
 API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti AGI.
 
-## Estado atual (Etapa 7)
+## Estado atual (Etapa 8)
 
 - Aplicação **FastAPI** com ponto de entrada `app.main:app` e factory `create_app()`.
 - **Settings** centralizados (`pydantic-settings`): `.env` + variáveis de ambiente; `DATABASE_URL` já utilizada para engine async e Alembic.
@@ -15,6 +15,7 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 - Restrições compartilhadas da feature de usuário centralizadas em `app.constants.user`, evitando duplicação entre ORM e Pydantic.
 - Camada de persistência da feature implementada em `app.repositories.user_repository.UserRepository`.
 - Camada de negócio da feature implementada em `app.services.user_service.UserService`, com validação de unicidade de email e tratamento de usuário inexistente.
+- Tratamento global de erros implementado com exceptions de domínio e handlers padronizados no FastAPI.
 
 *(Etapas anteriores: Poetry, estrutura de pastas, Docker Compose, smoke de dependências, healthcheck.)*
 
@@ -85,7 +86,7 @@ app/
 ├── repositories/     # ex.: UserRepository
 ├── services/         # health e UserService
 ├── cache/
-├── exceptions/
+├── exceptions/       # domínio + handlers globais
 └── tests/
 ```
 
@@ -142,6 +143,37 @@ Regras implementadas:
 - respostas públicas continuam sem expor `password`
 - usuários excluídos logicamente deixam de aparecer nas consultas do repository
 
+## Tratamento de erros
+
+As regras de negócio continuam lançando exceções de domínio, sem acoplamento com `HTTPException`.
+
+Estratégia adotada:
+
+- `AppError` como base para erros padronizados da aplicação
+- exceptions da feature de usuário herdando dessa base
+- handlers globais registrados na criação do `FastAPI`
+- respostas JSON padronizadas para erros de domínio, validação e falhas inesperadas
+
+Formato padrão:
+
+```json
+{
+  "error": {
+    "code": "user_not_found",
+    "message": "Usuário com id '...' não encontrado.",
+    "details": null
+  }
+}
+```
+
+Casos já cobertos:
+
+- `UserNotFoundError` -> `404`
+- `UserEmailAlreadyExistsError` -> `409`
+- erro de validação -> `422`
+- erro HTTP do framework -> status original com envelope padronizado
+- erro inesperado -> `500`
+
 ## Próximos passos
 
-Endpoints CRUD da feature de usuário e integração HTTP.
+Endpoints CRUD da feature de usuário consumindo `UserService` e os handlers globais.
