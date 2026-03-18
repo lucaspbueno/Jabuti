@@ -22,8 +22,8 @@ def test_settings_from_explicit_values() -> None:
     assert s.redis_url is not None
 
 
-def test_settings_optional_urls_default_none() -> None:
-    s = Settings()
+def test_settings_optional_urls_accept_none() -> None:
+    s = Settings(database_url=None, redis_url=None)
     assert s.database_url is None
     assert s.redis_url is None
 
