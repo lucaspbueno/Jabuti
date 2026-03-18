@@ -1,12 +1,12 @@
 """Base ORM do projeto (SQLAlchemy)."""
 
 import uuid
-
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
 
 class Base(DeclarativeBase):
     """Classe base para todos os modelos ORM."""
@@ -38,4 +38,3 @@ class Base(DeclarativeBase):
         DateTime(timezone=True),
         nullable=True,
     )
-

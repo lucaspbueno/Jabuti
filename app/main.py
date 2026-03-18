@@ -1,6 +1,5 @@
 """Ponto de entrada da aplicação FastAPI."""
 
-
 from fastapi import FastAPI
 
 from app.api.router import api_router
