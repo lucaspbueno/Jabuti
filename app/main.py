@@ -1,6 +1,6 @@
 """Ponto de entrada da aplicação FastAPI."""
 
-from typing import Optional
+
 from fastapi import FastAPI
 
 from app.api.router import api_router
@@ -10,7 +10,7 @@ from app.core.config import Settings, get_settings
 class Application:
     """Monta e configura a instância FastAPI."""
 
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings if settings is not None else get_settings()
 
     def build(self) -> FastAPI:
@@ -25,7 +25,7 @@ class Application:
         return app
 
 
-def create_app(settings: Optional[Settings] = None) -> FastAPI:
+def create_app(settings: Settings | None = None) -> FastAPI:
     """Factory usada por Uvicorn e por testes (permite injetar `Settings`)."""
     return Application(settings=settings).build()
 

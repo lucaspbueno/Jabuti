@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     database_url: str | None = Field(
         default=None,
-        description="URL async do PostgreSQL (etapa posterior)",
+        description="URL async do PostgreSQL usada pela engine e pelo Alembic",
     )
     redis_url: str | None = Field(
         default=None,
