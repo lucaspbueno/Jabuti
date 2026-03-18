@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
+from typing import cast
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 
@@ -51,7 +53,10 @@ async def test_get_write_db_session_commits_on_success(
     manager = FakeSessionManager(session)
     monkeypatch.setattr(deps, "get_database_session_manager", lambda: manager)
 
-    session_generator = deps.get_write_db_session()
+    session_generator = cast(
+        AsyncGenerator[AsyncSession, None],
+        deps.get_write_db_session(),
+    )
 
     yielded_session = await anext(session_generator)
 
@@ -72,7 +77,10 @@ async def test_get_write_db_session_rolls_back_on_error(
     manager = FakeSessionManager(session)
     monkeypatch.setattr(deps, "get_database_session_manager", lambda: manager)
 
-    session_generator = deps.get_write_db_session()
+    session_generator = cast(
+        AsyncGenerator[AsyncSession, None],
+        deps.get_write_db_session(),
+    )
 
     yielded_session = await anext(session_generator)
 

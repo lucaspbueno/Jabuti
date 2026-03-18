@@ -32,7 +32,11 @@ class Settings(BaseSettings):
     )
     redis_url: str | None = Field(
         default=None,
-        description="URL do Redis (etapa posterior)",
+        description="URL do Redis usada pela camada de cache",
+    )
+    redis_cache_ttl_seconds: int = Field(
+        default=300,
+        description="TTL padrão em segundos para itens armazenados no Redis",
     )
 
 
