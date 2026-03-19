@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.core import get_settings
-from app.db.config import DatabaseConfig
+from app.db import DatabaseConfig
 
 
 class DatabaseSessionManager:
