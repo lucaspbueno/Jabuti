@@ -1,0 +1,95 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-jabuti-api-collection",
+    "name": "Jabuti API",
+    "description": "Collection para o CRUD de usuários da API Jabuti.\n\n**Variáveis da collection**\n- `base_url`: origem da API (ex.: `http://127.0.0.1:8000`).\n- `api_prefix`: prefixo das rotas. Deixe vazio (`\"\"`) se a app estiver sem prefixo; use `/api/v1` se `API_PREFIX` estiver aplicado no FastAPI.\n- `user_id`: UUID para rotas de detalhe, atualização e exclusão (preencha após criar um usuário).\n\n**Postman:** Importar este arquivo (Import → file).\n**Insomnia:** Application → Import/Export → Import Data → From File → escolher este JSON (formato Postman).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "api_prefix",
+      "value": "/api/v1"
+    },
+    {
+      "key": "user_id",
+      "value": "550e8400-e29b-41d4-a716-446655440000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Usuários",
+      "item": [
+        {
+          "name": "Criar usuário",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maria Silva\",\n  \"email\": \"maria@example.com\",\n  \"password\": \"senha1234\"\n}"
+            },
+            "url": "{{base_url}}{{api_prefix}}/users",
+            "description": "Senha: mínimo 8 caracteres. Email deve ser único."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar usuários",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}{{api_prefix}}/users?limit=10&offset=0",
+            "description": "Query opcionais: `limit` (1–100, padrão 10) e `offset` (>= 0, padrão 0). Ajuste na URL conforme necessário."
+          },
+          "response": []
+        },
+        {
+          "name": "Obter usuário por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}{{api_prefix}}/users/{{user_id}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Atualizar usuário",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maria S. Atualizada\",\n  \"email\": \"maria.novo@example.com\",\n  \"password\": \"outrasenha8\",\n  \"active\": true\n}"
+            },
+            "url": "{{base_url}}{{api_prefix}}/users/{{user_id}}",
+            "description": "Atualização parcial: informe pelo menos um entre name, email, password, active."
+          },
+          "response": []
+        },
+        {
+          "name": "Excluir usuário",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}{{api_prefix}}/users/{{user_id}}"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

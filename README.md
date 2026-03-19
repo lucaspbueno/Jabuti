@@ -6,8 +6,6 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 
 - Aplicação **FastAPI** com ponto de entrada `app.main:app` e factory `create_app()`.
 - **Settings** centralizados (`pydantic-settings`): `.env` + variáveis de ambiente; `DATABASE_URL` já utilizada para engine async e Alembic.
-- Endpoint **`GET {API_PREFIX}/health`** (padrão `/api/v1/health`) com resposta JSON (`status`, `app_name`, `environment`).
-- Camadas: schema `HealthStatusResponse` → `SystemHealthService` → rota (sem banco, Redis ou CRUD).
 - Arquivo **`.env.example`** na raiz do projeto.
 - Infra de persistência configurada: **SQLAlchemy 2 async** (`Base`), engine e sessão async, integração com **Alembic**.
 - Gerenciador de sessão do banco mantido em POO, com contexto assíncrono para abrir/fechar sessões por requisição sem expor iteração no consumo.
@@ -75,7 +73,7 @@ Variáveis da collection:
 | Variável      | Padrão                         | Uso |
 | ------------- | ------------------------------ | --- |
 | `base_url`    | `http://127.0.0.1:8000`        | Origem da API |
-| `api_prefix`  | *(vazio)*                      | Se as rotas passarem a usar `API_PREFIX` (ex.: `/api/v1`), defina aqui o mesmo valor |
+| `api_prefix`  | `/api/v1`                      | Prefixo aplicado pelo FastAPI nas rotas (ex.: `API_PREFIX=/api/v1`). |
 | `user_id`     | UUID de exemplo                | Substitua pelo `id` retornado em **Criar usuário** para GET/PUT/DELETE |
 
 ## Infraestrutura local (Postgres + Redis + API)
