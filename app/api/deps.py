@@ -1,41 +1,44 @@
 """Dependências injetáveis nas rotas FastAPI."""
 
 from collections.abc import AsyncIterator
-from typing import Annotated
+from typing import Annotated, cast
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.cache import CacheService, get_redis_client
-from app.core.config import Settings, get_settings
-from app.db import UnitOfWork
-from app.db.session import get_database_session_manager
+from app.cache import CacheService, RedisClient
+from app.db import DatabaseSessionManager, UnitOfWork
 from app.repositories import UserRepository
 from app.security import PasswordHasher
 from app.services import UserService
-from app.services.system_health_service import SystemHealthService
 
 
-def get_system_health_service(
-    settings: Annotated[Settings, Depends(get_settings)],
-) -> SystemHealthService:
-    return SystemHealthService(settings)
+def get_redis_client(request: Request) -> RedisClient:
+    redis = cast(RedisClient | None, request.app.state.redis)
+
+    if redis is None:
+        raise ValueError("REDIS_URL não configurada nas settings.")
+
+    return redis
 
 
-def get_cache_service(
-    settings: Annotated[Settings, Depends(get_settings)],
-) -> CacheService:
-    """Cria serviço de cache reutilizável com Redis."""
-
-    return CacheService(get_redis_client(), settings)
+def get_cache_service(client: RedisClient = Depends(get_redis_client)) -> CacheService:
+    return CacheService(client)
 
 
-async def get_db_session() -> AsyncIterator[AsyncSession]:
+def get_db(request: Request) -> DatabaseSessionManager:
+    db = cast(DatabaseSessionManager | None, request.app.state.db)
+
+    if db is None:
+        raise ValueError("DATABASE_URL não configurada nas settings.")
+
+    return db
+
+
+async def get_db_session(db: DatabaseSessionManager = Depends(get_db)) -> AsyncIterator[AsyncSession]:
     """Fornece sessão com proteção de rollback para leitura e escrita."""
 
-    session_manager = get_database_session_manager()
-
-    async with session_manager.session() as session:
+    async with db.session() as session:
         try:
             yield session
         except Exception:
