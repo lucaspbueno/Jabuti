@@ -3,6 +3,7 @@
 import uuid
 
 from app.cache import CacheKeys, CacheService
+from app.db import UnitOfWork
 from app.exceptions import UserEmailAlreadyExistsError, UserNotFoundError
 from app.models import User
 from app.repositories import UserRepository
@@ -12,8 +13,9 @@ from app.schemas.user import UserCreate, UserListResponse, UserResponse, UserUpd
 class UserService:
     """Orquestra regras de negócio da feature de usuário."""
 
-    def __init__(self, repository: UserRepository, cache_service: CacheService) -> None:
+    def __init__(self, repository: UserRepository, unit_of_work: UnitOfWork, cache_service: CacheService) -> None:
         self._repository = repository
+        self._unit_of_work = unit_of_work
         self._cache_service = cache_service
 
     async def get_user_by_id(self, user_id: uuid.UUID) -> UserResponse:
@@ -59,6 +61,7 @@ class UserService:
         )
 
         response = self._to_response(user)
+        await self._unit_of_work.commit()
         await self._invalidate_user_list_cache()
 
         return response
@@ -81,6 +84,7 @@ class UserService:
             password=payload.password,
             active=payload.active,
         )
+        await self._unit_of_work.commit()
         await self._invalidate_user_detail_cache(user_id)
         await self._invalidate_user_list_cache()
 
@@ -89,6 +93,8 @@ class UserService:
     async def delete_user(self, user_id: uuid.UUID) -> UserResponse:
         user = await self._get_existing_user(user_id)
         deleted_user = await self._repository.delete(user)
+
+        await self._unit_of_work.commit()
         await self._invalidate_user_detail_cache(user_id)
         await self._invalidate_user_list_cache()
 
