@@ -11,6 +11,7 @@ from app.core.config import Settings, get_settings
 from app.db import UnitOfWork
 from app.db.session import get_database_session_manager
 from app.repositories import UserRepository
+from app.security import PasswordHasher
 from app.services import UserService
 from app.services.system_health_service import SystemHealthService
 
@@ -58,11 +59,18 @@ def get_unit_of_work(
     return UnitOfWork(session)
 
 
+def get_password_hasher() -> PasswordHasher:
+    """Cria utilitário de hash de senha."""
+
+    return PasswordHasher()
+
+
 def get_user_service(
     repository: Annotated[UserRepository, Depends(get_user_repository)],
     unit_of_work: Annotated[UnitOfWork, Depends(get_unit_of_work)],
     cache_service: Annotated[CacheService, Depends(get_cache_service)],
+    password_hasher: Annotated[PasswordHasher, Depends(get_password_hasher)],
 ) -> UserService:
     """Cria service de usuário."""
 
-    return UserService(repository, unit_of_work, cache_service)
+    return UserService(repository, unit_of_work, cache_service, password_hasher)
