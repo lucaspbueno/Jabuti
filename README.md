@@ -18,10 +18,11 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 - Camada de negócio da feature implementada em `app.services.user_service.UserService`, com validação de unicidade de email e tratamento de usuário inexistente.
 - Tratamento global de erros implementado com exceptions de domínio e handlers padronizados no FastAPI.
 - Endpoints CRUD da feature de usuário implementados com FastAPI, usando `UserService` por injeção de dependência.
-- Dependências de banco separadas entre leitura e escrita: rotas `GET` não fazem `commit`, enquanto mutações mantêm `commit/rollback` centralizados.
+- Dependências de banco simplificadas: uma sessão por requisição com `rollback` de proteção, mais uma `UnitOfWork` mínima para explicitar o `commit` nas operações de escrita.
 - Testes de dependências da API cobrem os fluxos de sessão de leitura e escrita, incluindo `rollback` em erro.
 - Camada reutilizável de cache com Redis implementada em POO, com cliente async, serviço de cache JSON e padronização centralizada de chaves.
 - Cache Redis integrado à feature de usuários para detalhe e listagem, com invalidação consistente nas operações de escrita.
+- `UserService` agora orquestra escrita via `UserRepository` + `UnitOfWork`, evitando acoplamento direto com `AsyncSession`.
 - Cobertura automatizada atual focada em testes unitários e de serviço, validando regras da API e comportamento de cache sem exigir banco e Redis dedicados para teste.
 
 *(Etapas anteriores: Poetry, estrutura de pastas, Docker Compose, smoke de dependências, healthcheck.)*
@@ -127,7 +128,7 @@ Validações já implementadas:
 
 ## Repository de usuário
 
-`UserRepository` concentra apenas acesso a dados com `AsyncSession`, sem regra de negócio e sem acoplamento ao FastAPI.
+`UserRepository` concentra apenas acesso a dados com `AsyncSession`, sem regra de negócio, sem `commit` próprio e sem acoplamento ao FastAPI.
 
 Operações disponíveis:
 
@@ -139,11 +140,11 @@ Operações disponíveis:
 - `update(...)`
 - `delete(...)`
 
-Nesta etapa o repository usa `flush` e `refresh`, mas não faz `commit`; o controle transacional fica centralizado nas dependências de escrita.
+Nesta etapa o repository usa `flush` e `refresh`, mas não faz `commit`; a confirmação transacional é decidida pela service via `UnitOfWork`.
 
 ## Service de usuário
 
-`UserService` centraliza regras de negócio e orquestra o fluxo entre schemas e `UserRepository`, sem acesso direto ao banco e sem acoplamento ao FastAPI.
+`UserService` centraliza regras de negócio e orquestra o fluxo entre schemas, `UserRepository`, `UnitOfWork` e cache, sem acoplamento ao FastAPI.
 
 Regras implementadas:
 
@@ -152,6 +153,7 @@ Regras implementadas:
 - não é permitido atualizar email para um valor já usado por outro usuário
 - respostas públicas continuam sem expor `password`
 - usuários excluídos logicamente deixam de aparecer nas consultas do repository
+- operações de escrita executam `commit` via `UnitOfWork` antes de invalidar o cache Redis
 
 ## Endpoints de usuário
 
@@ -166,8 +168,8 @@ Rotas disponíveis:
 Decisões desta etapa:
 
 - rotas finas, sem regra de negócio
-- composição via dependências: `AsyncSession` -> `UserRepository` -> `UserService`
-- rotas de leitura usam sessão sem `commit` automático; rotas de escrita usam sessão transacional com `commit/rollback`
+- composição via dependências: `AsyncSession` -> `UserRepository` + `UnitOfWork` -> `UserService`
+- `deps` mantém apenas o `rollback` de proteção; o `commit` das escritas é decidido dentro da service via `UnitOfWork`
 - `limit` e `offset` em query params, com validação simples no FastAPI
 - listagem retorna envelope paginado simples com `items`, `total`, `limit` e `offset`
 - `password` nunca aparece nas respostas
@@ -226,8 +228,8 @@ Estratégia de invalidação:
 
 Decisão de contrato desta etapa:
 
-- o `UserService` sempre recebe `UserRepository` e `CacheService`
-- testes unitários do service também injetam mock de cache para refletir o mesmo contrato da aplicação
+- o `UserService` sempre recebe `UserRepository`, `UnitOfWork` e `CacheService`
+- testes unitários do service também injetam mock de cache e `UnitOfWork` para refletir o mesmo contrato da aplicação
 
 ## Cobertura de testes atual
 
