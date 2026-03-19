@@ -137,11 +137,12 @@ async def test_create_user_creates_and_returns_response() -> None:
     response = await service.create_user(payload)
 
     assert response.id == created_user.id
-    repository.create.assert_awaited_once_with(
-        name=payload.name,
-        email="lucas@example.com",
-        password=payload.password,
-    )
+    repository.create.assert_awaited_once()
+    create_kwargs = repository.create.await_args.kwargs
+    assert create_kwargs["name"] == payload.name
+    assert create_kwargs["email"] == "lucas@example.com"
+    assert create_kwargs["password"] != payload.password
+    assert create_kwargs["password"].startswith("pbkdf2_sha256$")
     unit_of_work.commit.assert_awaited_once()
 
 
@@ -198,6 +199,27 @@ async def test_update_user_updates_and_returns_response() -> None:
         password=None,
         active=False,
     )
+    unit_of_work.commit.assert_awaited_once()
+
+
+async def test_update_user_hashes_password_when_informed() -> None:
+    repository = make_repository()
+    unit_of_work = make_unit_of_work()
+    cache = make_cache()
+    current_user = make_user(email="lucas@example.com")
+    repository.get_by_id.return_value = current_user
+    repository.update.return_value = current_user
+    service = UserService(repository, unit_of_work, cache)
+
+    await service.update_user(
+        current_user.id,
+        UserUpdate(password="nova-senha-segura"),
+    )
+
+    repository.update.assert_awaited_once()
+    update_kwargs = repository.update.await_args.kwargs
+    assert update_kwargs["password"] != "nova-senha-segura"
+    assert update_kwargs["password"].startswith("pbkdf2_sha256$")
     unit_of_work.commit.assert_awaited_once()
 
 

@@ -8,15 +8,23 @@ from app.exceptions import UserEmailAlreadyExistsError, UserNotFoundError
 from app.models import User
 from app.repositories import UserRepository
 from app.schemas.user import UserCreate, UserListResponse, UserResponse, UserUpdate
+from app.security import PasswordHasher
 
 
 class UserService:
     """Orquestra regras de negócio da feature de usuário."""
 
-    def __init__(self, repository: UserRepository, unit_of_work: UnitOfWork, cache_service: CacheService) -> None:
+    def __init__(
+        self,
+        repository: UserRepository,
+        unit_of_work: UnitOfWork,
+        cache_service: CacheService,
+        password_hasher: PasswordHasher,
+    ) -> None:
         self._repository = repository
         self._unit_of_work = unit_of_work
         self._cache_service = cache_service
+        self._password_hasher = password_hasher
 
     async def get_user_by_id(self, user_id: uuid.UUID) -> UserResponse:
         cached_response = await self._get_cached_user_detail(user_id)
@@ -51,13 +59,14 @@ class UserService:
 
     async def create_user(self, payload: UserCreate) -> UserResponse:
         email = str(payload.email)
+        hashed_password = self._password_hasher.hash_password(payload.password)
 
         await self._ensure_email_is_available(email)
 
         user = await self._repository.create(
             name=payload.name,
             email=email,
-            password=payload.password,
+            password=hashed_password,
         )
 
         response = self._to_response(user)
@@ -73,15 +82,19 @@ class UserService:
     ) -> UserResponse:
         user = await self._get_existing_user(user_id)
         email = str(payload.email) if payload.email is not None else None
+        password = payload.password
 
         if email:
             await self._ensure_email_is_available_for_update(email, user_id)
+
+        if password:
+            password = self._password_hasher.hash_password(password)
 
         updated_user = await self._repository.update(
             user,
             name=payload.name,
             email=email,
-            password=payload.password,
+            password=password,
             active=payload.active,
         )
         await self._unit_of_work.commit()
