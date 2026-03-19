@@ -12,6 +12,7 @@ from app.db import UnitOfWork
 from app.exceptions import UserEmailAlreadyExistsError, UserNotFoundError
 from app.models import User
 from app.schemas.user import UserCreate, UserUpdate
+from app.security import PasswordHasher
 from app.services import UserService
 
 
@@ -40,13 +41,21 @@ def make_cache() -> AsyncMock:
     return AsyncMock()
 
 
+def make_service(
+    repository: AsyncMock,
+    unit_of_work: AsyncMock,
+    cache: AsyncMock,
+) -> UserService:
+    return UserService(repository, unit_of_work, cache, PasswordHasher())
+
+
 async def test_get_user_by_id_returns_response() -> None:
     repository = make_repository()
     cache = make_cache()
     user = make_user()
     cache.get_json.return_value = None
     repository.get_by_id.return_value = user
-    service = UserService(repository, make_unit_of_work(), cache)
+    service = make_service(repository, make_unit_of_work(), cache)
 
     response = await service.get_user_by_id(user.id)
 
@@ -60,7 +69,7 @@ async def test_get_user_by_id_raises_when_user_does_not_exist() -> None:
     cache = make_cache()
     cache.get_json.return_value = None
     repository.get_by_id.return_value = None
-    service = UserService(repository, make_unit_of_work(), cache)
+    service = make_service(repository, make_unit_of_work(), cache)
     user_id = uuid.uuid4()
 
     with pytest.raises(UserNotFoundError):
@@ -74,7 +83,7 @@ async def test_list_users_returns_paginated_response() -> None:
     cache.get_json.return_value = None
     repository.list_users.return_value = users
     repository.count.return_value = 2
-    service = UserService(repository, make_unit_of_work(), cache)
+    service = make_service(repository, make_unit_of_work(), cache)
 
     response = await service.list_users(limit=10, offset=0)
 
@@ -97,7 +106,7 @@ async def test_create_user_raises_when_email_already_exists() -> None:
         password="senha-segura",
     )
     repository.get_by_email.return_value = make_user(email="lucas@example.com")
-    service = UserService(repository, make_unit_of_work(), cache)
+    service = make_service(repository, make_unit_of_work(), cache)
 
     with pytest.raises(UserEmailAlreadyExistsError):
         await service.create_user(payload)
@@ -114,7 +123,7 @@ async def test_create_user_raises_when_email_exists_even_if_soft_deleted() -> No
     existing = make_user(email="lucas@example.com")
     existing.deleted_at = datetime.now(UTC)
     repository.get_by_email.return_value = existing
-    service = UserService(repository, make_unit_of_work(), cache)
+    service = make_service(repository, make_unit_of_work(), cache)
 
     with pytest.raises(UserEmailAlreadyExistsError):
         await service.create_user(payload)
@@ -132,7 +141,7 @@ async def test_create_user_creates_and_returns_response() -> None:
     created_user = make_user(email="lucas@example.com")
     repository.get_by_email.return_value = None
     repository.create.return_value = created_user
-    service = UserService(repository, unit_of_work, cache)
+    service = make_service(repository, unit_of_work, cache)
 
     response = await service.create_user(payload)
 
@@ -142,7 +151,7 @@ async def test_create_user_creates_and_returns_response() -> None:
     assert create_kwargs["name"] == payload.name
     assert create_kwargs["email"] == "lucas@example.com"
     assert create_kwargs["password"] != payload.password
-    assert create_kwargs["password"].startswith("pbkdf2_sha256$")
+    assert create_kwargs["password"].startswith("$2")
     unit_of_work.commit.assert_awaited_once()
 
 
@@ -151,7 +160,7 @@ async def test_update_user_raises_when_user_does_not_exist() -> None:
     cache = make_cache()
     cache.get_json.return_value = None
     repository.get_by_id.return_value = None
-    service = UserService(repository, make_unit_of_work(), cache)
+    service = make_service(repository, make_unit_of_work(), cache)
 
     with pytest.raises(UserNotFoundError):
         await service.update_user(uuid.uuid4(), UserUpdate(name="Novo nome"))
@@ -164,7 +173,7 @@ async def test_update_user_raises_when_email_is_used_by_other_user() -> None:
     other_user = make_user(email="outro@example.com")
     repository.get_by_id.return_value = current_user
     repository.get_by_email.return_value = other_user
-    service = UserService(repository, make_unit_of_work(), cache)
+    service = make_service(repository, make_unit_of_work(), cache)
 
     with pytest.raises(UserEmailAlreadyExistsError):
         await service.update_user(
@@ -183,7 +192,7 @@ async def test_update_user_updates_and_returns_response() -> None:
     repository.get_by_id.return_value = current_user
     repository.get_by_email.return_value = None
     repository.update.return_value = updated_user
-    service = UserService(repository, unit_of_work, cache)
+    service = make_service(repository, unit_of_work, cache)
 
     response = await service.update_user(
         current_user.id,
@@ -209,7 +218,7 @@ async def test_update_user_hashes_password_when_informed() -> None:
     current_user = make_user(email="lucas@example.com")
     repository.get_by_id.return_value = current_user
     repository.update.return_value = current_user
-    service = UserService(repository, unit_of_work, cache)
+    service = make_service(repository, unit_of_work, cache)
 
     await service.update_user(
         current_user.id,
@@ -219,7 +228,7 @@ async def test_update_user_hashes_password_when_informed() -> None:
     repository.update.assert_awaited_once()
     update_kwargs = repository.update.await_args.kwargs
     assert update_kwargs["password"] != "nova-senha-segura"
-    assert update_kwargs["password"].startswith("pbkdf2_sha256$")
+    assert update_kwargs["password"].startswith("$2")
     unit_of_work.commit.assert_awaited_once()
 
 
@@ -227,7 +236,7 @@ async def test_delete_user_raises_when_user_does_not_exist() -> None:
     repository = make_repository()
     cache = make_cache()
     repository.get_by_id.return_value = None
-    service = UserService(repository, make_unit_of_work(), cache)
+    service = make_service(repository, make_unit_of_work(), cache)
 
     with pytest.raises(UserNotFoundError):
         await service.delete_user(uuid.uuid4())
@@ -241,7 +250,7 @@ async def test_delete_user_returns_deleted_response() -> None:
     user.active = False
     repository.get_by_id.return_value = user
     repository.delete.return_value = user
-    service = UserService(repository, unit_of_work, cache)
+    service = make_service(repository, unit_of_work, cache)
 
     response = await service.delete_user(user.id)
 

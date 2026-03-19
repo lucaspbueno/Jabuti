@@ -151,7 +151,7 @@ Regras implementadas:
 - usuário precisa existir para busca individual, atualização e exclusão
 - não é permitido criar usuário com email já existente (incluindo emails de usuários excluídos logicamente)
 - não é permitido atualizar email para um valor já usado por outro usuário
-- senha é persistida apenas como hash PBKDF2-HMAC-SHA256 com salt aleatório (nunca em texto puro)
+- senha é persistida apenas como hash bcrypt com salt embutido (nunca em texto puro)
 - respostas públicas continuam sem expor `password`
 - usuários excluídos logicamente deixam de aparecer nas consultas do repository
 - operações de escrita executam `commit` via `UnitOfWork` antes de invalidar o cache Redis
