@@ -26,21 +26,12 @@ class Settings(BaseSettings):
     debug: bool = Field(default=False, description="Modo debug do FastAPI")
     api_prefix: str = Field(default="/api/v1", description="Prefixo das rotas da API")
 
-    database_url: str | None = Field(
-        default=None,
-        description="URL async do PostgreSQL usada pela engine e pelo Alembic",
-    )
-    redis_url: str | None = Field(
-        default=None,
-        description="URL do Redis usada pela camada de cache",
-    )
-    redis_cache_ttl_seconds: int = Field(
-        default=300,
-        description="TTL padrão em segundos para itens armazenados no Redis",
-    )
+    database_url: str = Field(description="URL async do PostgreSQL usada pela engine e pelo Alembic")
+    redis_url: str = Field(description="URL do Redis usada pela camada de cache")
+    redis_cache_ttl_seconds: int = Field(default=300, description="TTL padrão em segundos para itens armazenados no Redis")
 
 
 @lru_cache
 def get_settings() -> Settings:
     """Retorna instância única de settings (cacheada por processo)."""
-    return Settings()
+    return Settings() # type: ignore[call-arg]
