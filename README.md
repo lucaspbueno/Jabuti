@@ -22,6 +22,9 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 - Testes de dependências da API cobrem os fluxos de sessão de leitura e escrita, incluindo `rollback` em erro.
 - Camada reutilizável de cache com Redis implementada em POO, com cliente async, serviço de cache JSON e padronização centralizada de chaves.
 - Cache Redis integrado à feature de usuários para detalhe e listagem, com invalidação consistente nas operações de escrita.
+- Configuração de runtime isolada por instância de app: dependências de DB/Redis usam `settings` do `app.state`, evitando vazamento de `get_settings()` global entre ambientes (ex.: testes e staging).
+- Composição de infraestrutura explícita na inicialização da app: `DatabaseSessionManager` e cliente Redis são anexados em `app.state` e consumidos pelas dependências da API.
+- `DatabaseSessionManager` foi simplificado para expor apenas o contrato de sessão (`session()`), sem expor `engine` ou `session_factory` para consumo externo.
 - Invalidação de cache após `commit` é **best-effort**: falhas transitórias do Redis não fazem `POST/PUT/DELETE` retornarem `500` depois que o banco já confirmou a transação (evita retries que criam/colidem com dados já persistidos).
 - `UserService` agora orquestra escrita via `UserRepository` + `UnitOfWork`, evitando acoplamento direto com `AsyncSession`.
 - Cobertura automatizada atual focada em testes unitários e de serviço, validando regras da API e comportamento de cache sem exigir banco e Redis dedicados para teste.

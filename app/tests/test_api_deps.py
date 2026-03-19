@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 
-
 class FakeSessionManager:
     """Expõe um contexto de sessão controlado para os testes."""
 
@@ -26,15 +25,13 @@ class FakeSessionManager:
 
 @pytest.mark.asyncio
 async def test_get_db_session_does_not_commit_on_success(
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     session = AsyncMock()
     manager = FakeSessionManager(session)
-    monkeypatch.setattr(deps, "get_database_session_manager", lambda: manager)
 
     session_generator = cast(
         AsyncGenerator[AsyncSession, None],
-        deps.get_db_session(),
+        deps.get_db_session(session_manager=manager),
     )
 
     yielded_session = await anext(session_generator)
@@ -50,15 +47,13 @@ async def test_get_db_session_does_not_commit_on_success(
 
 @pytest.mark.asyncio
 async def test_get_db_session_rolls_back_on_error(
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     session = AsyncMock()
     manager = FakeSessionManager(session)
-    monkeypatch.setattr(deps, "get_database_session_manager", lambda: manager)
 
     session_generator = cast(
         AsyncGenerator[AsyncSession, None],
-        deps.get_db_session(),
+        deps.get_db_session(session_manager=manager),
     )
 
     yielded_session = await anext(session_generator)
