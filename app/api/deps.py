@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cache import CacheService, get_redis_client
 from app.core.config import Settings, get_settings
+from app.db import UnitOfWork
 from app.db.session import get_database_session_manager
 from app.repositories import UserRepository
 from app.services import UserService
@@ -28,58 +29,40 @@ def get_cache_service(
     return CacheService(get_redis_client(), settings)
 
 
-async def get_read_db_session() -> AsyncIterator[AsyncSession]:
-    """Fornece sessão somente para leitura, sem commit automático."""
-
-    session_manager = get_database_session_manager()
-
-    async with session_manager.session() as session:
-        yield session
-
-
-async def get_write_db_session() -> AsyncIterator[AsyncSession]:
-    """Fornece sessão transacional para operações de escrita."""
+async def get_db_session() -> AsyncIterator[AsyncSession]:
+    """Fornece sessão com proteção de rollback para leitura e escrita."""
 
     session_manager = get_database_session_manager()
 
     async with session_manager.session() as session:
         try:
             yield session
-            await session.commit()
         except Exception:
             await session.rollback()
             raise
 
 
-def get_read_user_repository(
-    session: Annotated[AsyncSession, Depends(get_read_db_session)],
+def get_user_repository(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> UserRepository:
-    """Cria repositório de usuário com sessão de leitura."""
+    """Cria repositório de usuário."""
 
     return UserRepository(session)
 
 
-def get_write_user_repository(
-    session: Annotated[AsyncSession, Depends(get_write_db_session)],
-) -> UserRepository:
-    """Cria repositório de usuário com sessão transacional."""
+def get_unit_of_work(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> UnitOfWork:
+    """Cria unidade de trabalho da requisição atual."""
 
-    return UserRepository(session)
+    return UnitOfWork(session)
 
 
-def get_read_user_service(
-    repository: Annotated[UserRepository, Depends(get_read_user_repository)],
+def get_user_service(
+    repository: Annotated[UserRepository, Depends(get_user_repository)],
+    unit_of_work: Annotated[UnitOfWork, Depends(get_unit_of_work)],
     cache_service: Annotated[CacheService, Depends(get_cache_service)],
 ) -> UserService:
-    """Cria service de usuário para operações de leitura."""
+    """Cria service de usuário."""
 
-    return UserService(repository, cache_service)
-
-
-def get_write_user_service(
-    repository: Annotated[UserRepository, Depends(get_write_user_repository)],
-    cache_service: Annotated[CacheService, Depends(get_cache_service)],
-) -> UserService:
-    """Cria service de usuário para operações de escrita."""
-
-    return UserService(repository, cache_service)
+    return UserService(repository, unit_of_work, cache_service)
