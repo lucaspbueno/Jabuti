@@ -49,7 +49,7 @@ class Application:
         app.state.redis    = redis
 
         register_exception_handlers(app)
-        app.include_router(api_router)
+        app.include_router(api_router, prefix=self._settings.api_prefix.rstrip("/"))
 
         return app
 
