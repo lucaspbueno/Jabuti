@@ -22,6 +22,7 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 - Testes de dependências da API cobrem os fluxos de sessão de leitura e escrita, incluindo `rollback` em erro.
 - Camada reutilizável de cache com Redis implementada em POO, com cliente async, serviço de cache JSON e padronização centralizada de chaves.
 - Cache Redis integrado à feature de usuários para detalhe e listagem, com invalidação consistente nas operações de escrita.
+- Invalidação de cache após `commit` é **best-effort**: falhas transitórias do Redis não fazem `POST/PUT/DELETE` retornarem `500` depois que o banco já confirmou a transação (evita retries que criam/colidem com dados já persistidos).
 - `UserService` agora orquestra escrita via `UserRepository` + `UnitOfWork`, evitando acoplamento direto com `AsyncSession`.
 - Cobertura automatizada atual focada em testes unitários e de serviço, validando regras da API e comportamento de cache sem exigir banco e Redis dedicados para teste.
 
@@ -169,7 +170,7 @@ Rotas disponíveis:
 Decisões desta etapa:
 
 - rotas finas, sem regra de negócio
-- composição via dependências: `AsyncSession` -> `UserRepository` + `UnitOfWork` -> `UserService`
+- composição via dependências: `AsyncSession` -> `UserRepository` + `UnitOfWork` + `PasswordHasher` + `CacheService` -> `UserService`
 - `deps` mantém apenas o `rollback` de proteção; o `commit` das escritas é decidido dentro da service via `UnitOfWork`
 - `limit` e `offset` em query params, com validação simples no FastAPI
 - listagem retorna envelope paginado simples com `items`, `total`, `limit` e `offset`

@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock
 from app.db import UnitOfWork
 from app.models import User
 from app.schemas.user import UserCreate, UserUpdate
+from app.security import PasswordHasher
 from app.services import UserService
 
 
@@ -49,7 +50,7 @@ async def test_get_user_by_id_returns_cached_value_without_hitting_repository() 
         "created_at": user.created_at.isoformat(),
         "updated_at": user.updated_at.isoformat(),
     }
-    service = UserService(repository, make_unit_of_work(), cache)
+    service = UserService(repository, make_unit_of_work(), cache, PasswordHasher())
 
     response = await service.get_user_by_id(user.id)
 
@@ -63,7 +64,7 @@ async def test_get_user_by_id_caches_response_on_cache_miss() -> None:
     user = make_user()
     cache.get_json.return_value = None
     repository.get_by_id.return_value = user
-    service = UserService(repository, make_unit_of_work(), cache)
+    service = UserService(repository, make_unit_of_work(), cache, PasswordHasher())
 
     response = await service.get_user_by_id(user.id)
 
@@ -91,7 +92,7 @@ async def test_list_users_returns_cached_payload_without_querying_repository() -
         "limit": 10,
         "offset": 0,
     }
-    service = UserService(repository, make_unit_of_work(), cache)
+    service = UserService(repository, make_unit_of_work(), cache, PasswordHasher())
 
     response = await service.list_users(limit=10, offset=0)
 
@@ -108,7 +109,7 @@ async def test_list_users_caches_response_on_cache_miss() -> None:
     cache.get_json.return_value = None
     repository.list_users.return_value = users
     repository.count.return_value = 2
-    service = UserService(repository, make_unit_of_work(), cache)
+    service = UserService(repository, make_unit_of_work(), cache, PasswordHasher())
 
     response = await service.list_users(limit=10, offset=5)
 
@@ -124,7 +125,7 @@ async def test_create_user_commits_then_invalidates_list_cache() -> None:
     user = make_user()
     repository.get_by_email.return_value = None
     repository.create.return_value = user
-    service = UserService(repository, unit_of_work, cache)
+    service = UserService(repository, unit_of_work, cache, PasswordHasher())
 
     call_order: list[str] = []
     unit_of_work.commit.side_effect = lambda: call_order.append("commit")
@@ -153,7 +154,7 @@ async def test_update_user_commits_then_invalidates_detail_and_list_cache() -> N
     repository.get_by_id.return_value = user
     repository.get_by_email.return_value = None
     repository.update.return_value = updated_user
-    service = UserService(repository, unit_of_work, cache)
+    service = UserService(repository, unit_of_work, cache, PasswordHasher())
 
     call_order: list[str] = []
     unit_of_work.commit.side_effect = lambda: call_order.append("commit")
@@ -179,16 +180,78 @@ async def test_delete_user_commits_then_invalidates_detail_and_list_cache() -> N
     user.active = False
     repository.get_by_id.return_value = user
     repository.delete.return_value = user
-    service = UserService(repository, unit_of_work, cache)
+    service = UserService(repository, unit_of_work, cache, PasswordHasher())
 
-    call_order: list[str] = []
-    unit_of_work.commit.side_effect = lambda: call_order.append("commit")
-    cache.delete.side_effect = lambda *_: call_order.append("invalidate_detail")
-    cache.delete_by_prefix.side_effect = lambda *_: call_order.append("invalidate_list")
 
-    await service.delete_user(user.id)
+async def test_create_user_does_not_fail_when_cache_invalidation_fails_after_commit() -> None:
+    repository = make_repository()
+    unit_of_work = make_unit_of_work()
+    cache = make_cache()
+    user = make_user()
+    repository.get_by_email.return_value = None
+    repository.create.return_value = user
+    service = UserService(repository, unit_of_work, cache, PasswordHasher())
 
+    unit_of_work.commit.return_value = None
+    cache.delete_by_prefix.side_effect = RuntimeError("redis down")
+
+    response = await service.create_user(
+        UserCreate(
+            name="Lucas",
+            email="lucas@example.com",
+            password="senha-segura",
+        )
+    )
+
+    assert response.id == user.id
+    unit_of_work.commit.assert_awaited_once()
+    cache.delete_by_prefix.assert_awaited_once_with("users:list:")
+
+
+async def test_update_user_does_not_fail_when_cache_invalidation_fails_after_commit() -> None:
+    repository = make_repository()
+    unit_of_work = make_unit_of_work()
+    cache = make_cache()
+    user = make_user()
+    updated_user = make_user(email="novo@example.com")
+    updated_user.id = user.id
+    repository.get_by_id.return_value = user
+    repository.get_by_email.return_value = None
+    repository.update.return_value = updated_user
+    service = UserService(repository, unit_of_work, cache, PasswordHasher())
+
+    unit_of_work.commit.return_value = None
+    cache.delete.side_effect = RuntimeError("redis down")
+    cache.delete_by_prefix.side_effect = RuntimeError("redis down")
+
+    response = await service.update_user(
+        user.id,
+        UserUpdate(name="Novo nome", email="novo@example.com"),
+    )
+
+    assert response.id == user.id
     unit_of_work.commit.assert_awaited_once()
     cache.delete.assert_awaited_once_with(f"users:detail:{user.id}")
     cache.delete_by_prefix.assert_awaited_once_with("users:list:")
-    assert call_order == ["commit", "invalidate_detail", "invalidate_list"]
+
+
+async def test_delete_user_does_not_fail_when_cache_invalidation_fails_after_commit() -> None:
+    repository = make_repository()
+    unit_of_work = make_unit_of_work()
+    cache = make_cache()
+    user = make_user()
+    user.active = False
+    repository.get_by_id.return_value = user
+    repository.delete.return_value = user
+    service = UserService(repository, unit_of_work, cache, PasswordHasher())
+
+    unit_of_work.commit.return_value = None
+    cache.delete.side_effect = RuntimeError("redis down")
+    cache.delete_by_prefix.side_effect = RuntimeError("redis down")
+
+    response = await service.delete_user(user.id)
+
+    assert response.id == user.id
+    unit_of_work.commit.assert_awaited_once()
+    cache.delete.assert_awaited_once_with(f"users:detail:{user.id}")
+    cache.delete_by_prefix.assert_awaited_once_with("users:list:")

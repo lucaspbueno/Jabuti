@@ -7,7 +7,7 @@ from fastapi import FastAPI
 
 from app.api.router import api_router
 from app.cache import close_redis_client
-from app.core.config import Settings, get_settings
+from app.core import Settings, get_settings, setup_logging
 from app.exceptions import register_exception_handlers
 
 
@@ -43,5 +43,7 @@ def create_app(settings: Settings) -> FastAPI:
 
     return Application(settings=settings).build()
 
+
+setup_logging()
 
 app = create_app(settings=get_settings())

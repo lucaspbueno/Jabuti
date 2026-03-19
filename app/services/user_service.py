@@ -1,5 +1,6 @@
 """Service da feature de usuário."""
 
+import logging
 import uuid
 
 from app.cache import CacheKeys, CacheService
@@ -9,6 +10,8 @@ from app.models import User
 from app.repositories import UserRepository
 from app.schemas.user import UserCreate, UserListResponse, UserResponse, UserUpdate
 from app.security import PasswordHasher
+
+logger = logging.getLogger(__name__)
 
 
 class UserService:
@@ -35,7 +38,7 @@ class UserService:
         user = await self._get_existing_user(user_id)
         response = self._to_response(user)
 
-        await self._cache_user_detail(response)
+        await self._set_user_detail_cache(response)
 
         return response
 
@@ -53,7 +56,7 @@ class UserService:
             limit=limit,
             offset=offset,
         )
-        await self._cache_user_list(response)
+        await self._set_user_list_cache(response)
 
         return response
 
@@ -71,7 +74,7 @@ class UserService:
 
         response = self._to_response(user)
         await self._unit_of_work.commit()
-        await self._invalidate_user_list_cache()
+        await self._delete_user_list_cache()
 
         return response
 
@@ -98,8 +101,8 @@ class UserService:
             active=payload.active,
         )
         await self._unit_of_work.commit()
-        await self._invalidate_user_detail_cache(user_id)
-        await self._invalidate_user_list_cache()
+        await self._delete_user_detail_cache(user_id)
+        await self._delete_user_list_cache()
 
         return self._to_response(updated_user)
 
@@ -108,8 +111,8 @@ class UserService:
         deleted_user = await self._repository.delete(user)
 
         await self._unit_of_work.commit()
-        await self._invalidate_user_detail_cache(user_id)
-        await self._invalidate_user_list_cache()
+        await self._delete_user_detail_cache(user_id)
+        await self._delete_user_list_cache()
 
         return self._to_response(deleted_user)
 
@@ -157,20 +160,29 @@ class UserService:
 
         return UserListResponse.model_validate(payload)
 
-    async def _cache_user_detail(self, response: UserResponse) -> None:
+    async def _set_user_detail_cache(self, response: UserResponse) -> None:
         key = CacheKeys.user_detail(response.id)
         payload = response.model_dump(mode="json")
 
         await self._cache_service.set_json(key, payload)
 
-    async def _cache_user_list(self, response: UserListResponse) -> None:
+    async def _set_user_list_cache(self, response: UserListResponse) -> None:
         key = CacheKeys.users_list(response.limit, response.offset)
         payload = response.model_dump(mode="json")
 
         await self._cache_service.set_json(key, payload)
 
-    async def _invalidate_user_detail_cache(self, user_id: uuid.UUID) -> None:
-        await self._cache_service.delete(CacheKeys.user_detail(user_id))
+    async def _delete_user_detail_cache(self, user_id: uuid.UUID) -> None:
+        try:
+            await self._cache_service.delete(CacheKeys.user_detail(user_id))
+        except Exception:
+            logger.exception(
+                "Falha ao invalidar cache de detalhe do usuário após commit.",
+                extra={"user_id": str(user_id)},
+            )
 
-    async def _invalidate_user_list_cache(self) -> None:
-        await self._cache_service.delete_by_prefix(CacheKeys.users_list_prefix())
+    async def _delete_user_list_cache(self) -> None:
+        try:
+            await self._cache_service.delete_by_prefix(CacheKeys.users_list_prefix())
+        except Exception:
+            logger.exception("Falha ao invalidar cache de listagem de usuários após commit.")
