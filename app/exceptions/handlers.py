@@ -49,16 +49,20 @@ async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
 
 
 async def validation_error_handler(
-    _: Request,
+    request: Request,
     exc: RequestValidationError,
 ) -> JSONResponse:
     """Padroniza erros de validação de entrada."""
+
+    settings = getattr(request.app.state, "settings", None)
+    debug    = bool(getattr(settings, "debug", False))
+    details  = list(exc.errors()) if debug else None
 
     return _build_error_response(
         status_code=422,
         code="validation_error",
         message="Erro de validação na requisição.",
-        details=list(exc.errors()),
+        details=details,
     )
 
 

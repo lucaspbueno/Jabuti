@@ -21,6 +21,8 @@ def exception_test_app() -> tuple[Settings, FastAPI]:
         environment="test",
         debug=False,
         api_prefix="/api/v1",
+        database_url="postgresql+asyncpg://test:test@localhost:5432/test",
+        redis_url="redis://localhost:6379/0",
     )
     app = create_app(settings=settings)
 
@@ -53,6 +55,47 @@ async def exception_client(
         yield client
 
 
+@pytest.fixture
+def exception_test_app_debug_true() -> tuple[Settings, FastAPI]:
+    settings = Settings(
+        app_name="Jabuti Test",
+        environment="test",
+        debug=True,
+        api_prefix="/api/v1",
+        database_url="postgresql+asyncpg://test:test@localhost:5432/test",
+        redis_url="redis://localhost:6379/0",
+    )
+    app = create_app(settings=settings)
+
+    @app.get("/__test/not-found")
+    async def raise_not_found() -> None:
+        raise UserNotFoundError(uuid.uuid4())
+
+    @app.get("/__test/conflict")
+    async def raise_conflict() -> None:
+        raise UserEmailAlreadyExistsError("lucas@example.com")
+
+    @app.get("/__test/unexpected")
+    async def raise_unexpected() -> None:
+        raise RuntimeError("boom")
+
+    @app.post("/__test/validation")
+    async def validation_payload(limit: int = Body(..., embed=True)) -> dict[str, int]:
+        return {"limit": limit}
+
+    return settings, app
+
+
+@pytest.fixture
+async def exception_client_debug_true(
+    exception_test_app_debug_true: tuple[Settings, FastAPI],
+) -> AsyncIterator[AsyncClient]:
+    _, application = exception_test_app_debug_true
+    transport = ASGITransport(app=application, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client
+
+
 async def test_user_not_found_is_translated_to_404(
     exception_client: AsyncClient,
 ) -> None:
@@ -80,6 +123,21 @@ async def test_validation_error_is_translated_to_422(
     exception_client: AsyncClient,
 ) -> None:
     response = await exception_client.post(
+        "/__test/validation",
+        json={"limit": "abc"},
+    )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"]["code"] == "validation_error"
+    assert payload["error"]["message"] == "Erro de validação na requisição."
+    assert payload["error"]["details"] is None
+
+
+async def test_validation_error_details_are_included_when_debug_true(
+    exception_client_debug_true: AsyncClient,
+) -> None:
+    response = await exception_client_debug_true.post(
         "/__test/validation",
         json={"limit": "abc"},
     )

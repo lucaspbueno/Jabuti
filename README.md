@@ -288,7 +288,7 @@ Casos já cobertos:
 
 - `UserNotFoundError` -> `404`
 - `UserEmailAlreadyExistsError` -> `409`
-- erro de validação -> `422`
+- erro de validação -> `422` (com `details` apenas quando `DEBUG=true`)
 - erro HTTP do framework -> status original com envelope padronizado
 - erro inesperado -> `500`
 
