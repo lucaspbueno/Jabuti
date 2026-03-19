@@ -25,14 +25,17 @@ class FakeSessionManager:
 
 
 @pytest.mark.asyncio
-async def test_get_read_db_session_does_not_commit_or_rollback(
+async def test_get_db_session_does_not_commit_on_success(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     session = AsyncMock()
     manager = FakeSessionManager(session)
     monkeypatch.setattr(deps, "get_database_session_manager", lambda: manager)
 
-    session_generator = deps.get_read_db_session()
+    session_generator = cast(
+        AsyncGenerator[AsyncSession, None],
+        deps.get_db_session(),
+    )
 
     yielded_session = await anext(session_generator)
 
@@ -46,7 +49,7 @@ async def test_get_read_db_session_does_not_commit_or_rollback(
 
 
 @pytest.mark.asyncio
-async def test_get_write_db_session_commits_on_success(
+async def test_get_db_session_rolls_back_on_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     session = AsyncMock()
@@ -55,31 +58,7 @@ async def test_get_write_db_session_commits_on_success(
 
     session_generator = cast(
         AsyncGenerator[AsyncSession, None],
-        deps.get_write_db_session(),
-    )
-
-    yielded_session = await anext(session_generator)
-
-    assert yielded_session is session
-
-    with pytest.raises(StopAsyncIteration):
-        await anext(session_generator)
-
-    session.commit.assert_awaited_once()
-    session.rollback.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_get_write_db_session_rolls_back_on_error(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    session = AsyncMock()
-    manager = FakeSessionManager(session)
-    monkeypatch.setattr(deps, "get_database_session_manager", lambda: manager)
-
-    session_generator = cast(
-        AsyncGenerator[AsyncSession, None],
-        deps.get_write_db_session(),
+        deps.get_db_session(),
     )
 
     yielded_session = await anext(session_generator)

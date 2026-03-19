@@ -3,7 +3,7 @@
 import pytest
 
 from app.core import Settings
-from app.db.config import DatabaseConfig
+from app.db import DatabaseConfig
 from app.db.session import DatabaseSessionManager
 
 
