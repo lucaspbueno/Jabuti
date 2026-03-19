@@ -5,17 +5,14 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from redis.asyncio import Redis
-
-from app.core import Settings
-
+from app.cache.redis_client import RedisClient
 
 class CacheService:
     """Encapsula operações de cache e serialização JSON."""
 
-    def __init__(self, client: Redis[str], settings: Settings) -> None:
-        self._client = client
-        self._settings = settings
+    def __init__(self, redis_client: RedisClient) -> None:
+        self._client = redis_client.client
+        self._ttl_seconds = redis_client.ttl_seconds
 
     async def get_json(self, key: str) -> dict[str, Any] | None:
         cached_value = await self._client.get(key)
@@ -30,15 +27,9 @@ class CacheService:
 
         return value
 
-    async def set_json(
-        self,
-        key: str,
-        value: dict[str, Any],
-        *,
-        ttl_seconds: int | None = None,
-    ) -> None:
+    async def set_json(self, key: str, value: dict[str, Any]) -> None:
         serialized = json.dumps(value)
-        await self._client.set(key, serialized, ex=self._resolve_ttl(ttl_seconds))
+        await self._client.set(key, serialized, ex=self._ttl_seconds)
 
     async def delete(self, key: str) -> None:
         await self._client.delete(key)
@@ -50,9 +41,3 @@ class CacheService:
             deleted += await self._client.delete(key)
 
         return deleted
-
-    def _resolve_ttl(self, ttl_seconds: int | None) -> int:
-        if ttl_seconds is not None:
-            return ttl_seconds
-
-        return self._settings.redis_cache_ttl_seconds

@@ -2,43 +2,28 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
-
 from redis.asyncio import Redis
 
-from app.core import get_settings
+from app.cache.config import RedisConfig
 
+class RedisClient:
+    """Cliente Redis async reutilizável."""
 
-@lru_cache
-def get_redis_client() -> Redis[str]:
-    """Retorna uma instância singleton do cliente Redis async."""
+    def __init__(self, settings: RedisConfig) -> None:
+        self._redis_client = Redis.from_url(
+            settings.redis_url,
+            encoding="utf-8",
+            decode_responses=True,
+        )
+        self._ttl_seconds = settings.redis_cache_ttl_seconds
 
-    settings = get_settings()
+    @property
+    def client(self) -> Redis[str]:
+        return self._redis_client
 
-    if settings.redis_url is None:
-        raise ValueError("REDIS_URL não configurada nas settings.")
+    async def close(self) -> None:
+        await self._redis_client.close()
 
-    return Redis.from_url(
-        settings.redis_url,
-        encoding="utf-8",
-        decode_responses=True,
-    )
-
-
-async def close_redis_client() -> None:
-    """Fecha o cliente Redis reutilizado, se ele já tiver sido criado."""
-
-    try:
-        client = get_redis_client()
-    except ValueError:
-        return
-
-    try:
-        close_method = getattr(client, "aclose", None)
-
-        if close_method is None:
-            close_method = client.close
-
-        await close_method()
-    finally:
-        get_redis_client.cache_clear()
+    @property
+    def ttl_seconds(self) -> int:
+        return self._ttl_seconds
