@@ -13,10 +13,6 @@
     {
       "key": "api_prefix",
       "value": "/api/v1"
-    },
-    {
-      "key": "user_id",
-      "value": "550e8400-e29b-41d4-a716-446655440000"
     }
   ],
   "item": [
@@ -57,7 +53,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{base_url}}{{api_prefix}}/users/{{user_id}}"
+            "url": "{{base_url}}{{api_prefix}}/users/user_id"
           },
           "response": []
         },
@@ -75,7 +71,7 @@
               "mode": "raw",
               "raw": "{\n  \"name\": \"Maria S. Atualizada\",\n  \"email\": \"maria.novo@example.com\",\n  \"password\": \"outrasenha8\",\n  \"active\": true\n}"
             },
-            "url": "{{base_url}}{{api_prefix}}/users/{{user_id}}",
+            "url": "{{base_url}}{{api_prefix}}/users/user_id",
             "description": "Atualização parcial: informe pelo menos um entre name, email, password, active."
           },
           "response": []
@@ -85,7 +81,7 @@
           "request": {
             "method": "DELETE",
             "header": [],
-            "url": "{{base_url}}{{api_prefix}}/users/{{user_id}}"
+            "url": "{{base_url}}{{api_prefix}}/users/user_id"
           },
           "response": []
         }
