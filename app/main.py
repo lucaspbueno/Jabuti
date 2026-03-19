@@ -6,8 +6,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.router import api_router
-from app.cache import close_redis_client
+from app.cache import RedisClient, RedisConfig 
 from app.core import Settings, get_settings, setup_logging
+from app.db import DatabaseConfig, DatabaseSessionManager
 from app.exceptions import register_exception_handlers
 
 
@@ -18,23 +19,38 @@ class Application:
         self._settings = settings
 
     @asynccontextmanager
-    async def lifespan(self, _: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(self, app: FastAPI) -> AsyncIterator[None]:
         try:
             yield
         finally:
-            await close_redis_client()
+            db    = app.state.db
+            redis = app.state.redis
+
+            if db:
+                await db.close()
+
+            if redis:
+                await redis.close()
 
     def build(self) -> FastAPI:
-        app = FastAPI(
-            title=self._settings.app_name,
-            debug=self._settings.debug,
-            lifespan=self.lifespan,
+        db: DatabaseSessionManager = DatabaseSessionManager(DatabaseConfig(self._settings))
+        redis: RedisClient         = RedisClient(RedisConfig(self._settings))
+
+        app = (
+            FastAPI(
+                title=self._settings.app_name,
+                debug=self._settings.debug,
+                lifespan=self.lifespan,
+            )
         )
+
+        app.state.settings = self._settings
+        app.state.db       = db
+        app.state.redis    = redis
+
         register_exception_handlers(app)
-        app.include_router(
-            api_router,
-            prefix=self._settings.api_prefix.rstrip("/") or "",
-        )
+        app.include_router(api_router)
+
         return app
 
 
