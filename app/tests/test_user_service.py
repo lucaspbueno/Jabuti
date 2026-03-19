@@ -103,6 +103,23 @@ async def test_create_user_raises_when_email_already_exists() -> None:
         await service.create_user(payload)
 
 
+async def test_create_user_raises_when_email_exists_even_if_soft_deleted() -> None:
+    repository = make_repository()
+    cache = make_cache()
+    payload = UserCreate(
+        name="Lucas",
+        email="lucas@example.com",
+        password="senha-segura",
+    )
+    existing = make_user(email="lucas@example.com")
+    existing.deleted_at = datetime.now(UTC)
+    repository.get_by_email.return_value = existing
+    service = UserService(repository, make_unit_of_work(), cache)
+
+    with pytest.raises(UserEmailAlreadyExistsError):
+        await service.create_user(payload)
+
+
 async def test_create_user_creates_and_returns_response() -> None:
     repository = make_repository()
     unit_of_work = make_unit_of_work()

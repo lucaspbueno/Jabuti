@@ -35,7 +35,6 @@ class UserRepository:
             select(User)
             .where(
                 User.email == email,
-                User.deleted_at.is_(None),
             )
         )
         # fmt: on

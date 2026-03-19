@@ -149,7 +149,7 @@ Nesta etapa o repository usa `flush` e `refresh`, mas não faz `commit`; a confi
 Regras implementadas:
 
 - usuário precisa existir para busca individual, atualização e exclusão
-- não é permitido criar usuário com email já existente
+- não é permitido criar usuário com email já existente (incluindo emails de usuários excluídos logicamente)
 - não é permitido atualizar email para um valor já usado por outro usuário
 - respostas públicas continuam sem expor `password`
 - usuários excluídos logicamente deixam de aparecer nas consultas do repository
