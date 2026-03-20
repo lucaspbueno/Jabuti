@@ -26,3 +26,9 @@ class PasswordHasher:
             password.encode("utf-8"),
             hashed_password.encode("utf-8"),
         )
+
+
+def get_password_hasher() -> PasswordHasher:
+    """Factory para injeção de dependência do PasswordHasher."""
+
+    return PasswordHasher()
