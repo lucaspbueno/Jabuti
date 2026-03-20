@@ -16,7 +16,9 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 - Camada de negócio da feature implementada em `app.services.user_service.UserService`, com validação de unicidade de email e tratamento de usuário inexistente.
 - Tratamento global de erros implementado com exceptions de domínio e handlers padronizados no FastAPI.
 - Endpoints CRUD da feature de usuário implementados com FastAPI, usando `UserService` por injeção de dependência.
-- Dependências de banco simplificadas: uma sessão por requisição com `rollback` de proteção, mais uma `UnitOfWork` mínima para explicitar o `commit` nas operações de escrita.
+- Dependências de banco simplificadas: uma sessão por requisição com `rollback` no contexto de `Database.session()`, mais uma `UnitOfWork` mínima para explicitar o `commit` nas operações de escrita.
+- Dependências de banco centralizadas em `app.db` (`get_db` e `get_db_session`), reduzindo acoplamento da camada de API com detalhes de conexão.
+- Contexto `async with ...` para obtenção de sessão foi centralizado em helper da camada `db`, mantendo `dependencies` focado apenas em DI.
 - Testes de dependências da API cobrem os fluxos de sessão de leitura e escrita, incluindo `rollback` em erro.
 - Camada reutilizável de cache com Redis implementada em POO, com cliente async, serviço de cache JSON e padronização centralizada de chaves.
 - Cache Redis integrado à feature de usuários para detalhe e listagem, com invalidação consistente nas operações de escrita.
@@ -25,6 +27,8 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 - `DatabaseSessionManager` foi simplificado para expor apenas o contrato de sessão (`session()`), sem expor `engine` ou `session_factory` para consumo externo.
 - Invalidação de cache após `commit` é **best-effort**: falhas transitórias do Redis não fazem `POST/PUT/DELETE` retornarem `500` depois que o banco já confirmou a transação (evita retries que criam/colidem com dados já persistidos).
 - `UserService` agora orquestra escrita via `UserRepository` + `UnitOfWork`, evitando acoplamento direto com `AsyncSession`.
+- `UserService` agora depende de contratos (`Protocol`) para repository, UoW, cache e hasher, reduzindo acoplamento com implementações concretas.
+- Dependências da API foram reorganizadas em módulos por domínio e infraestrutura (`app/api/dependencies/`), substituindo o arquivo único `app/api/deps.py`.
 - Cobertura automatizada atual focada em testes unitários e de serviço, validando regras da API e comportamento de cache sem exigir banco e Redis dedicados para teste.
 
 *(Etapas anteriores: Poetry, estrutura de pastas, Docker Compose, smoke de dependências, healthcheck.)*
@@ -106,12 +110,12 @@ A suíte atual de testes não exige banco nem Redis dedicados. Os cenários de c
 app/
 ├── main.py           # FastAPI / Application
 ├── api/
-│   ├── deps.py       # composição de session/repository/service
+│   ├── dependencies/ # composição por domínio/infra (users + cache/redis)
 │   ├── router.py
 │   └── routes/       # users
 ├── core/             # Settings
 ├── constants/        # constantes compartilhadas por feature
-├── db/               # Base ORM + engine/sessão async
+├── db/               # Base ORM + engine/sessão async + dependências reutilizáveis
 ├── models/           # ex.: User
 ├── schemas/          # health e contratos de usuário
 ├── repositories/     # ex.: UserRepository
@@ -167,6 +171,8 @@ Nesta etapa o repository usa `flush` e `refresh`, mas não faz `commit`; a confi
 
 `UserService` centraliza regras de negócio e orquestra o fluxo entre schemas, `UserRepository`, `UnitOfWork` e cache, sem acoplamento ao FastAPI.
 
+Para reduzir acoplamento, a service também depende de interfaces em `app.services.interfaces` (contratos via `Protocol`) em vez de classes concretas de infraestrutura.
+
 Regras implementadas:
 
 - usuário precisa existir para busca individual, atualização e exclusão
@@ -191,7 +197,7 @@ Decisões desta etapa:
 
 - rotas finas, sem regra de negócio
 - composição via dependências: `AsyncSession` -> `UserRepository` + `UnitOfWork` + `PasswordHasher` + `CacheService` -> `UserService`
-- `deps` mantém apenas o `rollback` de proteção; o `commit` das escritas é decidido dentro da service via `UnitOfWork`
+- `db.session()` mantém o `rollback` de proteção; o `commit` das escritas é decidido dentro da service via `UnitOfWork`
 - `limit` e `offset` em query params, com validação simples no FastAPI
 - listagem retorna envelope paginado simples com `items`, `total`, `limit` e `offset`
 - `password` nunca aparece nas respostas
@@ -260,6 +266,7 @@ A cobertura automatizada atual prioriza cenários que podem ser validados sem in
 - testes de service para CRUD de usuários e regras de negócio
 - testes de cache na `UserService` com mocks para leitura, preenchimento e invalidação
 - testes de rotas, handlers, dependências e smoke tests da aplicação
+- testes de rotas validam status/response e também o repasse correto de parâmetros para a `UserService`
 
 ## Tratamento de erros
 

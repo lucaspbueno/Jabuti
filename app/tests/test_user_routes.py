@@ -11,18 +11,20 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from app.api.deps import get_user_service
+from app.api.dependencies import UserDependencies
 from app.core.config import Settings
 from app.exceptions import UserNotFoundError
 from app.main import create_app
-from app.schemas.user import UserListResponse, UserResponse
+from app.schemas.user import UserCreate, UserListResponse, UserResponse, UserUpdate
 
 
-def make_user_response(*, email: str = "lucas@example.com") -> UserResponse:
+def make_user_response(
+    *, name: str = "Lucas", email: str = "lucas@example.com"
+) -> UserResponse:
     now = datetime.now(UTC)
     return UserResponse(
         id=uuid.uuid4(),
-        name="Lucas",
+        name=name,
         email=email,
         active=True,
         created_at=now,
@@ -37,10 +39,12 @@ def users_test_app() -> tuple[Settings, FastAPI, AsyncMock]:
         environment="test",
         debug=False,
         api_prefix="/api/v1",
+        database_url="postgresql+asyncpg://test:test@localhost:5432/test",
+        redis_url="redis://localhost:6379/0",
     )
     app = create_app(settings=settings)
     service = AsyncMock()
-    app.dependency_overrides[get_user_service] = lambda: service
+    app.dependency_overrides[UserDependencies.get_service] = lambda: service
     return settings, app, service
 
 
@@ -77,6 +81,10 @@ async def test_create_user_returns_201_and_response_body(
     assert payload["email"] == "lucas@example.com"
     assert "password" not in payload
     service.create_user.assert_awaited_once()
+    called_payload = service.create_user.await_args.args[0]
+    assert isinstance(called_payload, UserCreate)
+    assert called_payload.name == "Lucas"
+    assert called_payload.email == "lucas@example.com"
 
 
 async def test_get_user_by_id_returns_response(
@@ -92,6 +100,7 @@ async def test_get_user_by_id_returns_response(
     payload = response.json()
     assert payload["id"] == str(response_schema.id)
     assert payload["email"] == response_schema.email
+    service.get_user_by_id.assert_awaited_once_with(response_schema.id)
 
 
 async def test_list_users_returns_paginated_payload(
@@ -124,18 +133,25 @@ async def test_update_user_returns_response(
     users_client: tuple[AsyncClient, AsyncMock],
 ) -> None:
     client, service = users_client
-    response_schema = make_user_response(email="novo@example.com")
+    response_schema = make_user_response(name="Novo Nome", email="novo@example.com")
     service.update_user.return_value = response_schema
+    user_id = response_schema.id
 
     response = await client.put(
-        f"/api/v1/users/{response_schema.id}",
+        f"/api/v1/users/{user_id}",
         json={"name": "Novo Nome", "email": "novo@example.com"},
     )
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["email"] == "novo@example.com"
-    assert payload["name"] == "Lucas"
+    assert payload["name"] == "Novo Nome"
+    service.update_user.assert_awaited_once()
+    called_user_id, called_payload = service.update_user.await_args.args
+    assert called_user_id == user_id
+    assert isinstance(called_payload, UserUpdate)
+    assert called_payload.name == "Novo Nome"
+    assert called_payload.email == "novo@example.com"
 
 
 async def test_delete_user_returns_deleted_user(
