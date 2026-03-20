@@ -9,11 +9,11 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from app.db import DatabaseConfig
+from app.db.config import DatabaseConfig
 
 
-class DatabaseSessionManager:
-    """Encapsula a criação e o fornecimento de sessões assíncronas."""
+class Database:
+    """Encapsula a conexão com o banco de dados."""
 
     def __init__(self, config: DatabaseConfig) -> None:
         self._config = config
@@ -22,16 +22,19 @@ class DatabaseSessionManager:
 
     @asynccontextmanager
     async def session(self) -> AsyncIterator[AsyncSession]:
-        """Fornece uma sessão async para uso em contextos async/await."""
+        """Fornece sessão com rollback em caso de erro"""
 
         session = self._session_factory()
 
         try:
             yield session
+        except Exception:
+            await session.rollback()
+            raise
         finally:
             await session.close()
 
     async def close(self) -> None:
-        """Fecha recursos da engine."""
+        """Fecha a conexão com o banco de dados."""
 
         await self._engine.dispose()

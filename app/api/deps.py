@@ -1,13 +1,12 @@
-"""Dependências injetáveis nas rotas FastAPI."""
+"""Dependências de composição para as rotas FastAPI."""
 
-from collections.abc import AsyncIterator
 from typing import Annotated, cast
 
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cache import CacheService, RedisClient
-from app.db import DatabaseSessionManager, UnitOfWork
+from app.db import UnitOfWork, get_db_session
 from app.repositories import UserRepository
 from app.security import PasswordHasher
 from app.services import UserService
@@ -24,26 +23,6 @@ def get_redis_client(request: Request) -> RedisClient:
 
 def get_cache_service(client: RedisClient = Depends(get_redis_client)) -> CacheService:
     return CacheService(client)
-
-
-def get_db(request: Request) -> DatabaseSessionManager:
-    db = cast(DatabaseSessionManager | None, request.app.state.db)
-
-    if db is None:
-        raise ValueError("DATABASE_URL não configurada nas settings.")
-
-    return db
-
-
-async def get_db_session(db: DatabaseSessionManager = Depends(get_db)) -> AsyncIterator[AsyncSession]:
-    """Fornece sessão com proteção de rollback para leitura e escrita."""
-
-    async with db.session() as session:
-        try:
-            yield session
-        except Exception:
-            await session.rollback()
-            raise
 
 
 def get_user_repository(
