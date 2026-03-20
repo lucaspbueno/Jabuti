@@ -1,5 +1,7 @@
-from app.api.dependencies.users import UserDependencies
+from app.api.dependencies.users import get_user_service
+from app.security import get_password_hasher
 
 __all__ = [
-    "UserDependencies",
+    "get_password_hasher",
+    "get_user_service",
 ]

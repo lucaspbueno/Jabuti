@@ -7,7 +7,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies.redis import RedisDependencies
+from app.api.dependencies.redis import get_cache_service
 from app.db import UnitOfWork, get_db_session
 from app.interfaces import (
     CacheServiceInterface,
@@ -16,42 +16,37 @@ from app.interfaces import (
     UserRepositoryInterface,
 )
 from app.repositories import UserRepository
-from app.security import PasswordHasher
+from app.security import get_password_hasher
 from app.services.user_service import UserService
 
 
-class UserDependencies:
-    """Concentra composição de dependências da feature de usuários."""
+def _get_repository(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> UserRepository:
+    return UserRepository(session)
 
-    @staticmethod
-    def _get_repository(
-        session: Annotated[AsyncSession, Depends(get_db_session)],
-    ) -> UserRepository:
-        return UserRepository(session)
 
-    @staticmethod
-    def _get_unit_of_work(
-        session: Annotated[AsyncSession, Depends(get_db_session)],
-    ) -> UnitOfWork:
-        return UnitOfWork(session)
+def _get_unit_of_work(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> UnitOfWork:
+    return UnitOfWork(session)
 
-    @staticmethod
-    def _get_cache_service(
-        cache_service: Annotated[CacheServiceInterface, Depends(RedisDependencies.get_cache_service)],
-    ) -> CacheServiceInterface:
-        return cache_service
 
-    @staticmethod
-    def _get_password_hasher(
-        password_hasher: Annotated[PasswordHasherInterface, Depends(PasswordHasher)],
-    ) -> PasswordHasherInterface:
-        return password_hasher
+def _get_cache_service(
+    cache_service: Annotated[
+        CacheServiceInterface,
+        Depends(get_cache_service),
+    ],
+) -> CacheServiceInterface:
+    return cache_service
 
-    @staticmethod
-    def get_service(
-        repository: Annotated[UserRepositoryInterface, Depends(_get_repository)],
-        unit_of_work: Annotated[UnitOfWorkInterface, Depends(_get_unit_of_work)],
-        cache_service: Annotated[CacheServiceInterface, Depends(_get_cache_service)],
-        password_hasher: Annotated[PasswordHasherInterface, Depends(_get_password_hasher)],
-    ) -> UserService:
-        return UserService(repository, unit_of_work, cache_service, password_hasher)
+
+def get_user_service(
+    repository: Annotated[UserRepositoryInterface, Depends(_get_repository)],
+    unit_of_work: Annotated[UnitOfWorkInterface, Depends(_get_unit_of_work)],
+    cache_service: Annotated[CacheServiceInterface, Depends(_get_cache_service)],
+    password_hasher: Annotated[PasswordHasherInterface, Depends(get_password_hasher)],
+) -> UserService:
+    """Compõe o UserService. Deve ser função de módulo: `@staticmethod` não aplica `Depends` no FastAPI."""
+
+    return UserService(repository, unit_of_work, cache_service, password_hasher)

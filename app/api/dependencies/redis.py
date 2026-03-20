@@ -2,25 +2,25 @@
 
 from __future__ import annotations
 
-from typing import cast
+from typing import Annotated, cast
 
 from fastapi import Depends, Request
 
 from app.cache import CacheService, RedisClient
 
 
-class RedisDependencies:
-    """Concentra composição de dependências do Redis."""
+def _get_redis_client(request: Request) -> RedisClient:
+    redis = cast(RedisClient | None, request.app.state.redis)
 
-    @staticmethod
-    def _get_redis_client(request: Request) -> RedisClient:
-        redis = cast(RedisClient | None, request.app.state.redis)
+    if redis is None:
+        raise ValueError("REDIS_URL não configurada nas settings.")
 
-        if redis is None:
-            raise ValueError("REDIS_URL não configurada nas settings.")
+    return redis
 
-        return redis
 
-    @staticmethod
-    def get_cache_service(client: RedisClient = Depends(_get_redis_client)) -> CacheService:
-        return CacheService(client)
+def get_cache_service(
+    client: Annotated[RedisClient, Depends(_get_redis_client)],
+) -> CacheService:
+    """Monta o CacheService. Deve ser função de módulo: `@staticmethod` não aplica `Depends` no FastAPI."""
+
+    return CacheService(client)
