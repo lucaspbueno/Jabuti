@@ -37,6 +37,8 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379/0
       REDIS_CACHE_TTL_SECONDS: ${REDIS_CACHE_TTL_SECONDS}
+    volumes:
+      - ./app:/app
     depends_on:
       postgres:
         condition: service_healthy
