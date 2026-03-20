@@ -10,7 +10,7 @@ from app.cache import CacheService, RedisClient
 
 
 class RedisDependencies:
-    """Concentra composição de dependências da feature de Redis."""
+    """Concentra composição de dependências do Redis."""
 
     @staticmethod
     def _get_redis_client(request: Request) -> RedisClient:
