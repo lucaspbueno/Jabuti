@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from app.api.router import api_router
 from app.cache import RedisClient, RedisConfig 
 from app.core import Settings, get_settings, setup_logging
-from app.db import DatabaseConfig, DatabaseSessionManager
+from app.db import DatabaseConfig, Database
 from app.exceptions import register_exception_handlers
 
 
@@ -33,8 +33,8 @@ class Application:
                 await redis.close()
 
     def build(self) -> FastAPI:
-        db: DatabaseSessionManager = DatabaseSessionManager(DatabaseConfig(self._settings))
-        redis: RedisClient         = RedisClient(RedisConfig(self._settings))
+        db: Database       = Database(DatabaseConfig(self._settings))
+        redis: RedisClient = RedisClient(RedisConfig(self._settings))
 
         app = (
             FastAPI(

@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.api.deps import get_user_service
+from app.api.dependencies import UserDependencies
 from app.schemas.user import UserCreate, UserListResponse, UserResponse, UserUpdate
 from app.services import UserService
 
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 )
 async def create_user(
     payload: UserCreate,
-    service: Annotated[UserService, Depends(get_user_service)],
+    service: Annotated[UserService, Depends(UserDependencies.get_service)],
 ) -> UserResponse:
     return await service.create_user(payload)
 
@@ -29,14 +29,14 @@ async def create_user(
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user_by_id(
     user_id: uuid.UUID,
-    service: Annotated[UserService, Depends(get_user_service)],
+    service: Annotated[UserService, Depends(UserDependencies.get_service)],
 ) -> UserResponse:
     return await service.get_user_by_id(user_id)
 
 
 @router.get("", response_model=UserListResponse)
 async def list_users(
-    service: Annotated[UserService, Depends(get_user_service)],
+    service: Annotated[UserService, Depends(UserDependencies.get_service)],
     limit: int = Query(default=10, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
 ) -> UserListResponse:
@@ -47,7 +47,7 @@ async def list_users(
 async def update_user(
     user_id: uuid.UUID,
     payload: UserUpdate,
-    service: Annotated[UserService, Depends(get_user_service)],
+    service: Annotated[UserService, Depends(UserDependencies.get_service)],
 ) -> UserResponse:
     return await service.update_user(user_id, payload)
 
@@ -55,6 +55,6 @@ async def update_user(
 @router.delete("/{user_id}", response_model=UserResponse)
 async def delete_user(
     user_id: uuid.UUID,
-    service: Annotated[UserService, Depends(get_user_service)],
+    service: Annotated[UserService, Depends(UserDependencies.get_service)],
 ) -> UserResponse:
     return await service.delete_user(user_id)
