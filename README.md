@@ -33,6 +33,8 @@ docker compose down
 ### Observações importantes
 
 - O container da API executa `alembic upgrade head` no startup.
+- A API roda com hot reload habilitado (`uvicorn --reload`) para refletir alterações de código em tempo real no ambiente Docker.
+- O diretório `./app` do host é montado em `/app` no serviço `api` (`docker-compose.yml`), para que mudanças locais cheguem ao processo dentro do container.
 - Serviços no `docker-compose.yml`:
   - `api` (porta `8000`)
   - `postgres` (porta `5432`)
@@ -126,10 +128,31 @@ Prefixo padrão: `API_PREFIX=/api/v1`.
 ### Usuários
 
 - `POST /api/v1/users` - criar usuário
-- `GET /api/v1/users/{user_id}` - buscar usuário por ID
 - `GET /api/v1/users?limit=10&offset=0` - listar usuários com paginação
+- `GET /api/v1/users/{user_id}` - buscar usuário por ID
 - `PUT /api/v1/users/{user_id}` - atualizar usuário
 - `DELETE /api/v1/users/{user_id}` - remover usuário (soft delete)
+
+Em `{user_id}` use um **UUID** válido (ex.: `550e8400-e29b-41d4-a716-446655440000`). O texto literal `user_id` não é aceito e resulta em **422**.
+
+Exemplos com `curl` (substitua o UUID pelo retornado no `POST` ou por um existente no banco):
+
+```bash
+# Criar usuário (JSON obrigatório: name, email, password)
+curl -sS -X POST "http://localhost:8000/api/v1/users" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Maria","email":"maria@example.com","password":"senha-segura"}'
+
+# Listar com paginação
+curl -sS "http://localhost:8000/api/v1/users?limit=10&offset=0"
+
+# Buscar por ID
+curl -sS "http://localhost:8000/api/v1/users/550e8400-e29b-41d4-a716-446655440000"
+```
+
+Para ver **detalhes** de erros de validação (422) no corpo da resposta, use `DEBUG=true` no `.env` (campo `error.details`).
+
+**Nota (FastAPI + `Depends`):** a composição de serviços (`get_user_service`, `get_cache_service`, etc.) fica em **funções no módulo** `app/api/dependencies/`. Usar `@staticmethod` com parâmetros `Depends(...)` faz o FastAPI tratar esses nomes como **query obrigatória** e devolver 422 em todas as rotas — não use esse padrão.
 
 ### Contratos principais
 
