@@ -34,7 +34,7 @@ docker compose down
 
 - O container da API executa `alembic upgrade head` no startup.
 - A API roda com hot reload habilitado (`uvicorn --reload`) para refletir alterações de código em tempo real no ambiente Docker.
-- O diretório `./app` do host é montado em `/app` no serviço `api` (`docker-compose.yml`), para que mudanças locais cheguem ao processo dentro do container.
+- O diretório `./app` do host é montado em `/app/app` no serviço `api` (`docker-compose.yml`), para hot-reload sem sobrescrever `pyproject.toml`, `poetry.lock` e `alembic` na raiz de `/app` da imagem.
 - Serviços no `docker-compose.yml`:
   - `api` (porta `8000`)
   - `postgres` (porta `5432`)
