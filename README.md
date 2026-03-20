@@ -6,8 +6,6 @@ API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti A
 
 - Aplicação **FastAPI** com ponto de entrada `app.main:app` e factory `create_app()`.
 - **Settings** centralizados (`pydantic-settings`): `.env` + variáveis de ambiente; `DATABASE_URL` já utilizada para engine async e Alembic.
-- Endpoint **`GET {API_PREFIX}/health`** (padrão `/api/v1/health`) com resposta JSON (`status`, `app_name`, `environment`).
-- Camadas: schema `HealthStatusResponse` → `SystemHealthService` → rota (sem banco, Redis ou CRUD).
 - Arquivo **`.env.example`** na raiz do projeto.
 - Infra de persistência configurada: **SQLAlchemy 2 async** (`Base`), engine e sessão async, integração com **Alembic**.
 - Gerenciador de sessão do banco mantido em POO, com contexto assíncrono para abrir/fechar sessões por requisição sem expor iteração no consumo.
@@ -62,15 +60,34 @@ poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 - Documentação interativa: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- Healthcheck: [http://127.0.0.1:8000/api/v1/health](http://127.0.0.1:8000/api/v1/health) (se `API_PREFIX` for o padrão)
 
-## Infraestrutura local (Postgres + Redis)
+### Collection HTTP (Postman e Insomnia)
+
+Na pasta [`postman/`](postman/) está o arquivo **`Jabuti.postman_collection.json`** (formato Postman Collection v2.1).
+
+- **Postman:** *Import* → *File* → selecione o JSON.
+- **Insomnia:** *Application* → *Import/Export* → *Import Data* → *From File* → escolha o mesmo arquivo (importação como coleção Postman).
+
+Variáveis da collection:
+
+| Variável      | Padrão                         | Uso |
+| ------------- | ------------------------------ | --- |
+| `base_url`    | `http://127.0.0.1:8000`        | Origem da API |
+| `api_prefix`  | `/api/v1`                      | Prefixo aplicado pelo FastAPI nas rotas (ex.: `API_PREFIX=/api/v1`). |
+| `user_id`     | UUID de exemplo                | Substitua pelo `id` retornado em **Criar usuário** para GET/PUT/DELETE |
+
+## Infraestrutura local (Postgres + Redis + API)
+
+Sobe **Postgres**, **Redis** e a **API** (imagem Docker) com um comando:
 
 ```bash
 docker compose up -d
 ```
 
-Credenciais padrão do Postgres no compose: usuário `jabuti`, senha `jabuti`, banco `jabuti`, porta `5432`. Redis na porta `6379`.
+- API: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) (porta `8000`)
+- A cada start do container da API roda **`alembic upgrade head`** antes do Uvicorn (migrations aplicadas automaticamente).
+- Credenciais padrão do Postgres no compose: usuário `jabuti`, senha `jabuti`, banco `jabuti`, porta `5432`. Redis na porta `6379`.
+- Variáveis `POSTGRES_*` podem ser sobrescritas via `.env` na raiz; a API monta `DATABASE_URL` apontando para o serviço `postgres` na rede do Compose.
 
 ## Qualidade e testes
 
@@ -91,14 +108,14 @@ app/
 ├── api/
 │   ├── deps.py       # composição de session/repository/service
 │   ├── router.py
-│   └── routes/       # health, users
+│   └── routes/       # users
 ├── core/             # Settings
 ├── constants/        # constantes compartilhadas por feature
 ├── db/               # Base ORM + engine/sessão async
 ├── models/           # ex.: User
 ├── schemas/          # health e contratos de usuário
 ├── repositories/     # ex.: UserRepository
-├── services/         # health e UserService
+├── services/         # UserService
 ├── cache/            # cliente Redis, serviço e chaves de cache
 ├── exceptions/       # domínio + handlers globais
 └── tests/            # testes unitários, de serviço e de composição da aplicação
@@ -113,7 +130,7 @@ poetry run alembic revision -m "criar tabela X"
 poetry run alembic upgrade head
 ```
 
-Nesta etapa ainda **não** há migrations de negócio aplicadas; o Alembic está preparado para enxergar os models quando elas forem criadas.
+Há migration da tabela de usuários (`alembic/versions/`). Em ambiente Docker, `upgrade head` roda no entrypoint da API; localmente use `poetry run alembic upgrade head` com `DATABASE_URL` válida.
 
 ## Contratos de usuário
 
@@ -271,7 +288,7 @@ Casos já cobertos:
 
 - `UserNotFoundError` -> `404`
 - `UserEmailAlreadyExistsError` -> `409`
-- erro de validação -> `422`
+- erro de validação -> `422` (com `details` apenas quando `DEBUG=true`)
 - erro HTTP do framework -> status original com envelope padronizado
 - erro inesperado -> `500`
 

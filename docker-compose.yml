@@ -24,3 +24,21 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+
+  api:
+    container_name: jabuti-api
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      APP_NAME: ${APP_NAME}
+      ENVIRONMENT: ${ENVIRONMENT}
+      DEBUG: ${DEBUG}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      REDIS_CACHE_TTL_SECONDS: ${REDIS_CACHE_TTL_SECONDS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
