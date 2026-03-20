@@ -1,67 +1,82 @@
-"""Testes das dependências de sessão da API."""
+"""Testes das dependências de composição da API."""
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, AsyncIterator
-from contextlib import asynccontextmanager
-from typing import cast
-from unittest.mock import AsyncMock
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import FastAPI
+from starlette.requests import Request
 
-from app.api import deps
-
-class FakeSessionManager:
-    """Expõe um contexto de sessão controlado para os testes."""
-
-    def __init__(self, session: AsyncMock) -> None:
-        self._session = session
-
-    @asynccontextmanager
-    async def session(self) -> AsyncIterator[AsyncMock]:
-        yield self._session
+from app.api.dependencies.redis import RedisDependencies
+from app.api.dependencies.users import UserDependencies
+from app.cache import CacheService
+from app.db import UnitOfWork
+from app.repositories import UserRepository
+from app.security import PasswordHasher
 
 
-@pytest.mark.asyncio
-async def test_get_db_session_does_not_commit_on_success(
-) -> None:
-    session = AsyncMock()
-    manager = FakeSessionManager(session)
-
-    session_generator = cast(
-        AsyncGenerator[AsyncSession, None],
-        deps.get_db_session(session_manager=manager),
+def test_get_redis_client_returns_client_from_app_state() -> None:
+    app = FastAPI()
+    redis_client = Mock()
+    app.state.redis = redis_client
+    request = Request(
+        scope={
+            "type": "http",
+            "app": app,
+            "method": "GET",
+            "path": "/",
+            "headers": [],
+            "query_string": b"",
+            "client": ("testclient", 50000),
+            "server": ("testserver", 80),
+            "scheme": "http",
+            "http_version": "1.1",
+        }
     )
 
-    yielded_session = await anext(session_generator)
+    result = RedisDependencies._get_redis_client(request)
 
-    assert yielded_session is session
-
-    with pytest.raises(StopAsyncIteration):
-        await anext(session_generator)
-
-    session.commit.assert_not_awaited()
-    session.rollback.assert_not_awaited()
+    assert result is redis_client
 
 
-@pytest.mark.asyncio
-async def test_get_db_session_rolls_back_on_error(
-) -> None:
-    session = AsyncMock()
-    manager = FakeSessionManager(session)
-
-    session_generator = cast(
-        AsyncGenerator[AsyncSession, None],
-        deps.get_db_session(session_manager=manager),
+def test_get_redis_client_raises_when_redis_is_missing() -> None:
+    app = FastAPI()
+    app.state.redis = None
+    request = Request(
+        scope={
+            "type": "http",
+            "app": app,
+            "method": "GET",
+            "path": "/",
+            "headers": [],
+            "query_string": b"",
+            "client": ("testclient", 50000),
+            "server": ("testserver", 80),
+            "scheme": "http",
+            "http_version": "1.1",
+        }
     )
 
-    yielded_session = await anext(session_generator)
+    with pytest.raises(ValueError, match="REDIS_URL não configurada"):
+        RedisDependencies._get_redis_client(request)
 
-    assert yielded_session is session
 
-    with pytest.raises(RuntimeError, match="falha"):
-        await session_generator.athrow(RuntimeError("falha"))
+def test_get_cache_service_builds_cache_with_redis_client() -> None:
+    redis_client = SimpleNamespace(client=Mock(), ttl_seconds=120)
 
-    session.commit.assert_not_awaited()
-    session.rollback.assert_awaited_once()
+    service = RedisDependencies.get_cache_service(redis_client)
+
+    assert isinstance(service, CacheService)
+
+
+def test_user_dependencies_create_expected_instances() -> None:
+    session = Mock()
+    repository = UserDependencies._get_repository(session)
+    unit_of_work = UserDependencies._get_unit_of_work(session)
+    hasher = UserDependencies._get_password_hasher(PasswordHasher())
+
+    assert isinstance(repository, UserRepository)
+    assert isinstance(unit_of_work, UnitOfWork)
+    assert isinstance(hasher, PasswordHasher)

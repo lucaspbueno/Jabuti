@@ -1,278 +1,166 @@
-# Jabuti
+# Jabuti - Desafio Técnico (API CRUD de Usuários)
 
-API CRUD de usuários com **FastAPI**, pensada para o teste técnico da Jabuti AGI.
+API desenvolvida com **Python + FastAPI** usando arquitetura em camadas (`routes -> services -> repositories`), persistência com **PostgreSQL** (SQLAlchemy async + Alembic) e cache com **Redis**.
 
-## Estado atual (Etapa 12)
+> Execução do projeto **exclusivamente com Docker**.
 
-- Aplicação **FastAPI** com ponto de entrada `app.main:app` e factory `create_app()`.
-- **Settings** centralizados (`pydantic-settings`): `.env` + variáveis de ambiente; `DATABASE_URL` já utilizada para engine async e Alembic.
-- Arquivo **`.env.example`** na raiz do projeto.
-- Infra de persistência configurada: **SQLAlchemy 2 async** (`Base`), engine e sessão async, integração com **Alembic**.
-- Gerenciador de sessão do banco mantido em POO, com contexto assíncrono para abrir/fechar sessões por requisição sem expor iteração no consumo.
-- Model de domínio **`User`** definido em `app.models.user` (tabela `user`, colunas próprias + herança de campos comuns da `Base`).
-- Schemas Pydantic da feature de usuário implementados em `app.schemas.user`: criação, atualização parcial e resposta pública.
-- Restrições compartilhadas da feature de usuário centralizadas em `app.constants.user`, evitando duplicação entre ORM e Pydantic.
-- Camada de persistência da feature implementada em `app.repositories.user_repository.UserRepository`.
-- Camada de negócio da feature implementada em `app.services.user_service.UserService`, com validação de unicidade de email e tratamento de usuário inexistente.
-- Tratamento global de erros implementado com exceptions de domínio e handlers padronizados no FastAPI.
-- Endpoints CRUD da feature de usuário implementados com FastAPI, usando `UserService` por injeção de dependência.
-- Dependências de banco simplificadas: uma sessão por requisição com `rollback` de proteção, mais uma `UnitOfWork` mínima para explicitar o `commit` nas operações de escrita.
-- Testes de dependências da API cobrem os fluxos de sessão de leitura e escrita, incluindo `rollback` em erro.
-- Camada reutilizável de cache com Redis implementada em POO, com cliente async, serviço de cache JSON e padronização centralizada de chaves.
-- Cache Redis integrado à feature de usuários para detalhe e listagem, com invalidação consistente nas operações de escrita.
-- Configuração de runtime isolada por instância de app: dependências de DB/Redis usam `settings` do `app.state`, evitando vazamento de `get_settings()` global entre ambientes (ex.: testes e staging).
-- Composição de infraestrutura explícita na inicialização da app: `DatabaseSessionManager` e cliente Redis são anexados em `app.state` e consumidos pelas dependências da API.
-- `DatabaseSessionManager` foi simplificado para expor apenas o contrato de sessão (`session()`), sem expor `engine` ou `session_factory` para consumo externo.
-- Invalidação de cache após `commit` é **best-effort**: falhas transitórias do Redis não fazem `POST/PUT/DELETE` retornarem `500` depois que o banco já confirmou a transação (evita retries que criam/colidem com dados já persistidos).
-- `UserService` agora orquestra escrita via `UserRepository` + `UnitOfWork`, evitando acoplamento direto com `AsyncSession`.
-- Cobertura automatizada atual focada em testes unitários e de serviço, validando regras da API e comportamento de cache sem exigir banco e Redis dedicados para teste.
+## Como rodar (Docker)
 
-*(Etapas anteriores: Poetry, estrutura de pastas, Docker Compose, smoke de dependências, healthcheck.)*
-
-## Stack
-
-| Área        | Tecnologia                          |
-| ----------- | ----------------------------------- |
-| API         | FastAPI, Uvicorn, Pydantic          |
-| Banco       | PostgreSQL, SQLAlchemy 2 async, asyncpg, Alembic |
-| Cache       | Redis                               |
-| Qualidade   | Ruff, Mypy, Pytest, pytest-asyncio  |
-| Ambiente    | Poetry, Docker Compose              |
-
-## Pré-requisitos
-
-- Python 3.11+
-- [Poetry](https://python-poetry.org/docs/#installation)
-- Docker e Docker Compose (opcional, para subir Postgres e Redis)
-
-## Instalação
+### 1) Configurar variáveis de ambiente
 
 ```bash
-cd Jabuti
-poetry install
-cp .env.example .env   # opcional; ajuste variáveis
+cp .env.example .env
 ```
 
-## Executar a API
+### 2) Subir toda a stack
 
 ```bash
-poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+docker compose up --build
 ```
 
-- Documentação interativa: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+### 3) Acessar a aplicação
 
-### Collection HTTP (Postman e Insomnia)
+- API: [http://localhost:8000](http://localhost:8000)
+- Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)
+- OpenAPI JSON: [http://localhost:8000/openapi.json](http://localhost:8000/openapi.json)
 
-Na pasta [`postman/`](postman/) está o arquivo **`Jabuti.postman_collection.json`** (formato Postman Collection v2.1).
-
-- **Postman:** *Import* → *File* → selecione o JSON.
-- **Insomnia:** *Application* → *Import/Export* → *Import Data* → *From File* → escolha o mesmo arquivo (importação como coleção Postman).
-
-Variáveis da collection:
-
-| Variável      | Padrão                         | Uso |
-| ------------- | ------------------------------ | --- |
-| `base_url`    | `http://127.0.0.1:8000`        | Origem da API |
-| `api_prefix`  | `/api/v1`                      | Prefixo aplicado pelo FastAPI nas rotas (ex.: `API_PREFIX=/api/v1`). |
-| `user_id`     | UUID de exemplo                | Substitua pelo `id` retornado em **Criar usuário** para GET/PUT/DELETE |
-
-## Infraestrutura local (Postgres + Redis + API)
-
-Sobe **Postgres**, **Redis** e a **API** (imagem Docker) com um comando:
+### 4) Parar os containers
 
 ```bash
-docker compose up -d
+docker compose down
 ```
 
-- API: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) (porta `8000`)
-- A cada start do container da API roda **`alembic upgrade head`** antes do Uvicorn (migrations aplicadas automaticamente).
-- Credenciais padrão do Postgres no compose: usuário `jabuti`, senha `jabuti`, banco `jabuti`, porta `5432`. Redis na porta `6379`.
-- Variáveis `POSTGRES_*` podem ser sobrescritas via `.env` na raiz; a API monta `DATABASE_URL` apontando para o serviço `postgres` na rede do Compose.
+### Observações importantes
 
-## Qualidade e testes
+- O container da API executa `alembic upgrade head` no startup.
+- Serviços no `docker-compose.yml`:
+  - `api` (porta `8000`)
+  - `postgres` (porta `5432`)
+  - `redis` (porta `6379`)
 
-```bash
-poetry run ruff check app alembic
-poetry run ruff format --check app alembic
-poetry run mypy app alembic
-poetry run pytest
-```
+## Sumário
 
-A suíte atual de testes não exige banco nem Redis dedicados. Os cenários de cache e regras de negócio cobertos hoje usam mocks nos testes de serviço.
+- [Tecnologias](#tecnologias)
+- [Arquitetura](#arquitetura)
+- [Estrutura de pastas](#estrutura-de-pastas)
+- [Variáveis de ambiente](#variáveis-de-ambiente)
+- [Endpoints](#endpoints)
+- [Cache](#cache)
+- [Tratamento de erros](#tratamento-de-erros)
+- [Testes](#testes)
 
-## Estrutura do pacote `app`
+## Tecnologias
 
-```
+- Python 3.11
+- FastAPI
+- SQLAlchemy 2.0 (async) + asyncpg
+- PostgreSQL
+- Redis
+- Alembic
+- Pydantic / pydantic-settings
+- Poetry
+- Ruff
+- Mypy
+- Pytest / pytest-asyncio
+- Docker / Docker Compose
+
+## Arquitetura
+
+O projeto segue separação clara de responsabilidades:
+
+- `routes`: recebe request/response HTTP e valida parâmetros de entrada.
+- `services`: concentra regras de negócio.
+- `repositories`: encapsula acesso ao banco.
+
+A aplicação também inclui:
+
+- camada de cache Redis reutilizável;
+- exceções de domínio + handlers globais;
+- injeção de dependências via FastAPI (`Depends`);
+- composição de infraestrutura no `app.state` (`db`, `redis`, `settings`).
+
+## Estrutura de pastas
+
+```text
 app/
-├── main.py           # FastAPI / Application
 ├── api/
-│   ├── deps.py       # composição de session/repository/service
-│   ├── router.py
-│   └── routes/       # users
-├── core/             # Settings
-├── constants/        # constantes compartilhadas por feature
-├── db/               # Base ORM + engine/sessão async
-├── models/           # ex.: User
-├── schemas/          # health e contratos de usuário
-├── repositories/     # ex.: UserRepository
-├── services/         # UserService
-├── cache/            # cliente Redis, serviço e chaves de cache
-├── exceptions/       # domínio + handlers globais
-└── tests/            # testes unitários, de serviço e de composição da aplicação
+│   ├── dependencies/
+│   ├── routes/
+│   └── router.py
+├── cache/
+├── constants/
+├── core/
+├── db/
+├── exceptions/
+├── interfaces/
+├── models/
+├── repositories/
+├── schemas/
+├── security/
+├── services/
+├── tests/
+└── main.py
 ```
 
-## Migrations (Alembic)
+## Variáveis de ambiente
 
-Com o `.env` configurado (incluindo `DATABASE_URL`):
+Principais variáveis (arquivo `.env`):
 
-```bash
-poetry run alembic revision -m "criar tabela X"
-poetry run alembic upgrade head
-```
-
-Há migration da tabela de usuários (`alembic/versions/`). Em ambiente Docker, `upgrade head` roda no entrypoint da API; localmente use `poetry run alembic upgrade head` com `DATABASE_URL` válida.
-
-## Contratos de usuário
-
-- `UserCreate`: `name`, `email`, `password`
-- `UserUpdate`: atualização parcial de `name`, `email`, `password` e `active`
-- `UserResponse`: `id`, `name`, `email`, `active`, `created_at`, `updated_at`
-- `UserListResponse`: `items`, `total`, `limit`, `offset`
-
-Validações já implementadas:
-
-- `email` válido com `EmailStr`
-- `password` obrigatória na criação e com tamanho mínimo
-- `UserUpdate` exige pelo menos um campo informado
-- `password` não aparece em schemas de saída
-- limites compartilhados de `User` centralizados em um único módulo reutilizado por `model` e `schemas`
-
-## Repository de usuário
-
-`UserRepository` concentra apenas acesso a dados com `AsyncSession`, sem regra de negócio, sem `commit` próprio e sem acoplamento ao FastAPI.
-
-Operações disponíveis:
-
-- `get_by_id`
-- `get_by_email`
-- `list_users(limit, offset)`
-- `count()`
-- `create(...)`
-- `update(...)`
-- `delete(...)`
-
-Nesta etapa o repository usa `flush` e `refresh`, mas não faz `commit`; a confirmação transacional é decidida pela service via `UnitOfWork`.
-
-## Service de usuário
-
-`UserService` centraliza regras de negócio e orquestra o fluxo entre schemas, `UserRepository`, `UnitOfWork` e cache, sem acoplamento ao FastAPI.
-
-Regras implementadas:
-
-- usuário precisa existir para busca individual, atualização e exclusão
-- não é permitido criar usuário com email já existente (incluindo emails de usuários excluídos logicamente)
-- não é permitido atualizar email para um valor já usado por outro usuário
-- senha é persistida apenas como hash bcrypt com salt embutido (nunca em texto puro)
-- respostas públicas continuam sem expor `password`
-- usuários excluídos logicamente deixam de aparecer nas consultas do repository
-- operações de escrita executam `commit` via `UnitOfWork` antes de invalidar o cache Redis
-
-## Endpoints de usuário
-
-Rotas disponíveis:
-
-- `POST /api/v1/users`
-- `GET /api/v1/users/{user_id}`
-- `GET /api/v1/users?limit=10&offset=0`
-- `PUT /api/v1/users/{user_id}`
-- `DELETE /api/v1/users/{user_id}`
-
-Decisões desta etapa:
-
-- rotas finas, sem regra de negócio
-- composição via dependências: `AsyncSession` -> `UserRepository` + `UnitOfWork` + `PasswordHasher` + `CacheService` -> `UserService`
-- `deps` mantém apenas o `rollback` de proteção; o `commit` das escritas é decidido dentro da service via `UnitOfWork`
-- `limit` e `offset` em query params, com validação simples no FastAPI
-- listagem retorna envelope paginado simples com `items`, `total`, `limit` e `offset`
-- `password` nunca aparece nas respostas
-- erros de domínio seguem sendo traduzidos pelos handlers globais
-
-## Camada de cache
-
-Componentes implementados:
-
-- `redis_client.py`: cliente Redis async reutilizável
-- `cache_service.py`: leitura, escrita e remoção de dados JSON com TTL
-- `cache_keys.py`: geração padronizada de chaves da aplicação
-
-Configurações disponíveis:
-
+- `APP_NAME`
+- `ENVIRONMENT`
+- `DEBUG`
+- `API_PREFIX` (padrão: `/api/v1`)
+- `DATABASE_URL`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `POSTGRES_DB`
 - `REDIS_URL`
 - `REDIS_CACHE_TTL_SECONDS`
 
-Padrões de chave já definidos:
+Use `.env.example` como base.
 
-- `users:detail:{id}`
-- `users:list:{limit}:{offset}`
+## Endpoints
 
-Operações disponíveis na camada de cache:
+Prefixo padrão: `API_PREFIX=/api/v1`.
 
-- `get_json(key)`
-- `set_json(key, value, ttl_seconds=None)`
-- `delete(key)`
-- `delete_by_prefix(prefix)`
+### Usuários
 
-Contrato atual do cache JSON:
+- `POST /api/v1/users` - criar usuário
+- `GET /api/v1/users/{user_id}` - buscar usuário por ID
+- `GET /api/v1/users?limit=10&offset=0` - listar usuários com paginação
+- `PUT /api/v1/users/{user_id}` - atualizar usuário
+- `DELETE /api/v1/users/{user_id}` - remover usuário (soft delete)
 
-- o `CacheService` salva e lê sempre um objeto JSON (`dict`)
-- os endpoints de listagem usam `UserListResponse` como envelope serializado
-- isso evita ambiguidade entre `dict` e `list` e simplifica a tipagem da camada
+### Contratos principais
 
-## Integração do cache na feature de usuários
+- `UserCreate`: `name`, `email`, `password`
+- `UserUpdate`: atualização parcial de `name`, `email`, `password`, `active`
+- `UserResponse`: resposta pública sem campo `password`
+- `UserListResponse`: `items`, `total`, `limit`, `offset`
 
-O cache foi integrado na `UserService`, mantendo:
+## Cache
 
-- rotas finas
-- repository focado em banco
-- chaves, serialização e invalidação concentradas em um único ponto de orquestração
-- `CacheService` como dependência obrigatória do `UserService`, sem fallback nulo dentro da regra de negócio
+A camada de cache usa Redis para otimizar leituras:
 
-Leituras com cache:
+- detalhe: `users:detail:{id}`
+- listagem: `users:list:{limit}:{offset}`
 
-- `GET /users/{user_id}` usa `users:detail:{id}`
-- `GET /users?limit=X&offset=Y` usa `users:list:{limit}:{offset}`
+Invalidação aplicada em operações de escrita:
 
-Estratégia de invalidação:
-
-- `create_user` -> invalida todo cache de listagem
-- `update_user` -> invalida detalhe do usuário + todo cache de listagem
-- `delete_user` -> invalida detalhe do usuário + todo cache de listagem
-
-Decisão de contrato desta etapa:
-
-- o `UserService` sempre recebe `UserRepository`, `UnitOfWork` e `CacheService`
-- testes unitários do service também injetam mock de cache e `UnitOfWork` para refletir o mesmo contrato da aplicação
-
-## Cobertura de testes atual
-
-A cobertura automatizada atual prioriza cenários que podem ser validados sem infraestrutura dedicada:
-
-- testes de service para CRUD de usuários e regras de negócio
-- testes de cache na `UserService` com mocks para leitura, preenchimento e invalidação
-- testes de rotas, handlers, dependências e smoke tests da aplicação
+- criação: invalida cache de listagens;
+- atualização: invalida detalhe + listagens;
+- remoção: invalida detalhe + listagens.
 
 ## Tratamento de erros
 
-As regras de negócio continuam lançando exceções de domínio, sem acoplamento com `HTTPException`.
+Padrão com exceções de domínio (`AppError`) e handlers globais:
 
-Estratégia adotada:
+- `404` para recurso não encontrado;
+- `409` para conflito de negócio (ex.: email já existente);
+- `422` para validação;
+- `500` para erro inesperado.
 
-- `AppError` como base para erros padronizados da aplicação
-- exceptions da feature de usuário herdando dessa base
-- handlers globais registrados na criação do `FastAPI`
-- respostas JSON padronizadas para erros de domínio, validação e falhas inesperadas
-
-Formato padrão:
+Formato padrão de erro:
 
 ```json
 {
@@ -284,14 +172,20 @@ Formato padrão:
 }
 ```
 
-Casos já cobertos:
+## Testes
 
-- `UserNotFoundError` -> `404`
-- `UserEmailAlreadyExistsError` -> `409`
-- erro de validação -> `422` (com `details` apenas quando `DEBUG=true`)
-- erro HTTP do framework -> status original com envelope padronizado
-- erro inesperado -> `500`
+A suíte está em `app/tests` com cobertura de:
 
-## Próximos passos
+- schemas;
+- repositories;
+- services;
+- rotas;
+- dependências;
+- cache;
+- handlers de exceção.
 
-Ajustes finais, revisão do projeto e README de entrega.
+Exemplo para executar testes dentro do container da API:
+
+```bash
+docker compose run --rm api poetry run pytest
+```

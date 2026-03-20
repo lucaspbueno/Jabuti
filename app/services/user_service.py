@@ -3,13 +3,16 @@
 import logging
 import uuid
 
-from app.cache import CacheKeys, CacheService
-from app.db import UnitOfWork
+from app.cache import CacheKeys
 from app.exceptions import UserEmailAlreadyExistsError, UserNotFoundError
 from app.models import User
-from app.repositories import UserRepository
 from app.schemas.user import UserCreate, UserListResponse, UserResponse, UserUpdate
-from app.security import PasswordHasher
+from app.interfaces import (
+    CacheServiceInterface,
+    PasswordHasherInterface,
+    UnitOfWorkInterface,
+    UserRepositoryInterface,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +22,10 @@ class UserService:
 
     def __init__(
         self,
-        repository: UserRepository,
-        unit_of_work: UnitOfWork,
-        cache_service: CacheService,
-        password_hasher: PasswordHasher,
+        repository: UserRepositoryInterface,
+        unit_of_work: UnitOfWorkInterface,
+        cache_service: CacheServiceInterface,
+        password_hasher: PasswordHasherInterface,
     ) -> None:
         self._repository = repository
         self._unit_of_work = unit_of_work
