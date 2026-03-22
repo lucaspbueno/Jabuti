@@ -4,7 +4,12 @@ API desenvolvida com **Python + FastAPI** usando arquitetura em camadas (`routes
 
 > Execução do projeto **exclusivamente com Docker**.
 
-## Como rodar (Docker)
+## Tecnologias
+
+![REST API](https://img.shields.io/badge/api%20rest-02569B?style=for-the-badge&logo=fastapi&logoColor=white) ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54) ![FastAPI](https://img.shields.io/badge/fastapi-009688?style=for-the-badge&logo=fastapi&logoColor=white) ![Docker](https://img.shields.io/badge/docker-0db7ed?style=for-the-badge&logo=docker&logoColor=white) ![Docker Compose](https://img.shields.io/badge/docker%20compose-384d54?style=for-the-badge&logo=docker&logoColor=white) ![Redis](https://img.shields.io/badge/redis-DD0031?style=for-the-badge&logo=redis&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/postgresql-316192?style=for-the-badge&logo=postgresql&logoColor=white) ![SQLAlchemy](https://img.shields.io/badge/sqlalchemy-CC2927?style=for-the-badge&logo=sqlalchemy&logoColor=white) ![Alembic](https://img.shields.io/badge/alembic-000000?style=for-the-badge&logo=alembic&logoColor=white) ![Pytest](https://img.shields.io/badge/pytest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)
+![Pydantic](https://img.shields.io/badge/pydantic-E92063?style=for-the-badge&logo=pydantic&logoColor=white) ![Poetry](https://img.shields.io/badge/poetry-60A5FA?style=for-the-badge&logo=poetry&logoColor=white) ![Ruff](https://img.shields.io/badge/ruff-000000?style=for-the-badge&logo=ruff&logoColor=white) ![Mypy](https://img.shields.io/badge/mypy-2A6DB2?style=for-the-badge&logo=python&logoColor=white) ![Uvicorn](https://img.shields.io/badge/uvicorn-499848?style=for-the-badge&logo=python&logoColor=white) ![Swagger](https://img.shields.io/badge/swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black) ![ReDoc](https://img.shields.io/badge/redoc-EF3B2D?style=for-the-badge&logo=redoc&logoColor=white) ![Postman](https://img.shields.io/badge/postman-FF6C37?style=for-the-badge&logo=postman&logoColor=white) ![Insomnia](https://img.shields.io/badge/insomnia-4000BF?style=for-the-badge&logo=insomnia&logoColor=white) 
+
+## Como rodar
 
 ### 1) Configurar variáveis de ambiente
 
@@ -15,34 +20,25 @@ cp .env.example .env
 ### 2) Subir toda a stack
 
 ```bash
-docker compose up --build
+docker compose up -d --build
 ```
 
 ### 3) Acessar a aplicação
 
 - API: [http://localhost:8000](http://localhost:8000)
 - Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)
-- OpenAPI JSON: [http://localhost:8000/openapi.json](http://localhost:8000/openapi.json)
+- ReDoc: [http://localhost:8000/redoc	](http://localhost:8000/redoc	)
 
 ### 4) Parar os containers
 
 ```bash
-docker compose down
+docker compose down -v --remove-orphans
 ```
-
-### Observações importantes
-
-- O container da API executa `alembic upgrade head` no startup.
-- A API roda com hot reload habilitado (`uvicorn --reload`) para refletir alterações de código em tempo real no ambiente Docker.
-- O diretório `./app` do host é montado em `/app/app` no serviço `api` (`docker-compose.yml`), para hot-reload sem sobrescrever `pyproject.toml`, `poetry.lock` e `alembic` na raiz de `/app` da imagem.
-- Serviços no `docker-compose.yml`:
-  - `api` (porta `8000`)
-  - `postgres` (porta `5432`)
-  - `redis` (porta `6379`)
 
 ## Sumário
 
 - [Tecnologias](#tecnologias)
+- [Get Started](#como-rodar)
 - [Arquitetura](#arquitetura)
 - [Estrutura de pastas](#estrutura-de-pastas)
 - [Variáveis de ambiente](#variáveis-de-ambiente)
@@ -51,26 +47,11 @@ docker compose down
 - [Tratamento de erros](#tratamento-de-erros)
 - [Testes](#testes)
 
-## Tecnologias
-
-- Python 3.11
-- FastAPI
-- SQLAlchemy 2.0 (async) + asyncpg
-- PostgreSQL
-- Redis
-- Alembic
-- Pydantic / pydantic-settings
-- Poetry
-- Ruff
-- Mypy
-- Pytest / pytest-asyncio
-- Docker / Docker Compose
-
 ## Arquitetura
 
 O projeto segue separação clara de responsabilidades:
 
-- `routes`: recebe request/response HTTP e valida parâmetros de entrada.
+- `routes`: recebe request/response HTTP e valida parâmetros de entrada com pydantic.
 - `services`: concentra regras de negócio.
 - `repositories`: encapsula acesso ao banco.
 
@@ -123,6 +104,7 @@ Use `.env.example` como base.
 
 ## Endpoints
 
+Host: `https://localhost`
 Prefixo padrão: `API_PREFIX=/api/v1`.
 
 ### Usuários
@@ -133,26 +115,13 @@ Prefixo padrão: `API_PREFIX=/api/v1`.
 - `PUT /api/v1/users/{user_id}` - atualizar usuário
 - `DELETE /api/v1/users/{user_id}` - remover usuário (soft delete)
 
-Em `{user_id}` use um **UUID** válido (ex.: `550e8400-e29b-41d4-a716-446655440000`). O texto literal `user_id` não é aceito e resulta em **422**.
-
-Exemplos com `curl` (substitua o UUID pelo retornado no `POST` ou por um existente no banco):
-
-```bash
-# Criar usuário (JSON obrigatório: name, email, password)
-curl -sS -X POST "http://localhost:8000/api/v1/users" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Maria","email":"maria@example.com","password":"senha-segura"}'
-
-# Listar com paginação
-curl -sS "http://localhost:8000/api/v1/users?limit=10&offset=0"
-
-# Buscar por ID
-curl -sS "http://localhost:8000/api/v1/users/550e8400-e29b-41d4-a716-446655440000"
-```
-
-Para ver **detalhes** de erros de validação (422) no corpo da resposta, use `DEBUG=true` no `.env` (campo `error.details`).
-
-**Nota (FastAPI + `Depends`):** a composição de serviços (`get_user_service`, `get_cache_service`, etc.) fica em **funções no módulo** `app/api/dependencies/`. Usar `@staticmethod` com parâmetros `Depends(...)` faz o FastAPI tratar esses nomes como **query obrigatória** e devolver 422 em todas as rotas — não use esse padrão.
+| Método | Endpoint                                      | Descrição                         |
+| ------ | --------------------------------------------- | --------------------------------- |
+| POST   | `/api/v1/users`                               | Criar usuário                     |
+| GET    | `/api/v1/users?limit=10&offset=0`             | Listar usuários com paginação     |
+| GET    | `/api/v1/users/{user_id}`                     | Buscar usuário por ID             |
+| PUT    | `/api/v1/users/{user_id}`                     | Atualizar usuário                 |
+| DELETE | `/api/v1/users/{user_id}`                     | Remover usuário (soft delete)     |
 
 ### Contratos principais
 
@@ -194,6 +163,8 @@ Formato padrão de erro:
   }
 }
 ```
+
+Para ver **detalhes** de erros de validação no corpo da resposta, use `DEBUG=true` no `.env` (campo `error.details`).
 
 ## Testes
 
