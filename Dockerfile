@@ -19,8 +19,9 @@ COPY alembic.ini ./
 COPY alembic/ ./alembic/
 COPY app/ ./app/
 COPY docker/entrypoint.sh /entrypoint.sh
+COPY docker/entrypoint-test.sh /entrypoint-test.sh
 
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh /entrypoint-test.sh
 
 EXPOSE 8000
 

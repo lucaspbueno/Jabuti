@@ -178,8 +178,23 @@ A suíte está em `app/tests` com cobertura de:
 - cache;
 - handlers de exceção.
 
-Exemplo para executar testes dentro do container da API:
+### Rodar os testes do zero (com Docker)
+
+- Não é obrigatório subir Postgres/Redis só para estes testes: a suíte atual usa principalmente mocks e não exige banco ou Redis reais ligados.
+- O comando abaixo usa o script **`/entrypoint-test.sh`**, que instala o grupo de dependências `dev` e chama o pytest, **sem** subir os outros serviços (`--no-deps`):
 
 ```bash
-docker compose run --rm api poetry run pytest
+docker compose run --rm --no-deps --entrypoint /entrypoint-test.sh api
 ```
+
+Se você omitir `--no-deps`, o Compose ainda sobe Postgres e Redis por causa do `depends_on` do serviço `api`, útil só se no futuro existirem testes de integração com esses serviços; para a suíte de hoje isso é desnecessário.
+
+Na primeira execução o `poetry install --with dev` pode demorar um pouco; nas seguintes costuma ser mais rápido. Os logs dessa etapa de instalação de dependências estão omitidos pelo comando `-q` no arquivo **`/entrypoint-test.sh`**.
+
+### Remover a network criada pelo docker-compose após a execução dos testes (Opcional)
+
+```bash
+docker network rm jabuti-network
+```
+
+---
