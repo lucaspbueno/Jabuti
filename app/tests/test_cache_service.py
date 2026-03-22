@@ -3,20 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 from redis.asyncio import Redis
 
 from app.cache import CacheService
-from app.core import Settings
-
-
-def make_settings() -> Settings:
-    return Settings(
-        database_url="postgresql+asyncpg://jabuti:jabuti@localhost:5432/jabuti",
-        redis_url="redis://localhost:6379/0",
-        redis_cache_ttl_seconds=300,
-    )
 
 
 def make_client() -> AsyncMock:
@@ -28,10 +20,16 @@ def make_client() -> AsyncMock:
     return client
 
 
+def make_cache_service(client: AsyncMock, *, ttl_seconds: int = 300) -> CacheService:
+    """Monta CacheService com o mesmo shape de RedisClient (client + ttl)."""
+    redis_wrapper = SimpleNamespace(client=client, ttl_seconds=ttl_seconds)
+    return CacheService(redis_wrapper)  # type: ignore[arg-type]
+
+
 async def test_get_json_returns_none_when_key_is_missing() -> None:
     client = make_client()
     client.get.return_value = None
-    service = CacheService(client, make_settings())
+    service = make_cache_service(client)
 
     value = await service.get_json("users:detail:1")
 
@@ -42,7 +40,7 @@ async def test_get_json_returns_none_when_key_is_missing() -> None:
 async def test_get_json_deserializes_json_payload() -> None:
     client = make_client()
     client.get.return_value = '{"data":{"name":"Lucas","email":"lucas@example.com"}}'
-    service = CacheService(client, make_settings())
+    service = make_cache_service(client)
 
     value = await service.get_json("users:detail:1")
 
@@ -54,7 +52,7 @@ async def test_get_json_deserializes_json_payload() -> None:
 async def test_get_json_returns_none_for_non_object_json() -> None:
     client = make_client()
     client.get.return_value = '[{"email":"lucas@example.com"}]'
-    service = CacheService(client, make_settings())
+    service = make_cache_service(client)
 
     value = await service.get_json("users:list:10:0")
 
@@ -63,7 +61,7 @@ async def test_get_json_returns_none_for_non_object_json() -> None:
 
 async def test_set_json_uses_default_ttl_when_not_informed() -> None:
     client = make_client()
-    service = CacheService(client, make_settings())
+    service = make_cache_service(client)
 
     await service.set_json(
         "users:list:10:0",
@@ -79,7 +77,7 @@ async def test_set_json_uses_default_ttl_when_not_informed() -> None:
 
 async def test_set_json_uses_explicit_ttl_when_informed() -> None:
     client = make_client()
-    service = CacheService(client, make_settings())
+    service = make_cache_service(client, ttl_seconds=300)
 
     await service.set_json(
         "users:detail:1",
@@ -96,7 +94,7 @@ async def test_set_json_uses_explicit_ttl_when_informed() -> None:
 
 async def test_delete_removes_single_key() -> None:
     client = make_client()
-    service = CacheService(client, make_settings())
+    service = make_cache_service(client)
 
     await service.delete("users:detail:1")
 
@@ -105,7 +103,7 @@ async def test_delete_removes_single_key() -> None:
 
 async def test_delete_by_prefix_removes_all_matching_keys() -> None:
     client = make_client()
-    service = CacheService(client, make_settings())
+    service = make_cache_service(client)
 
     async def scan_keys() -> AsyncIterator[str]:
         yield "users:list:10:0"

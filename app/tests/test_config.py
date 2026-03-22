@@ -1,6 +1,7 @@
 """Testes de carregamento de configuração."""
 
 import pytest
+from pydantic import ValidationError
 
 from app.core.config import Settings, get_settings
 
@@ -22,10 +23,14 @@ def test_settings_from_explicit_values() -> None:
     assert s.redis_url is not None
 
 
-def test_settings_optional_urls_accept_none() -> None:
-    s = Settings(database_url=None, redis_url=None)
-    assert s.database_url is None
-    assert s.redis_url is None
+def test_settings_rejects_none_urls() -> None:
+    with pytest.raises(ValidationError) as exc:
+        Settings(
+            database_url=None,  # type: ignore[arg-type]
+            redis_url=None,  # type: ignore[arg-type]
+        )
+    errors = {e["loc"][0] for e in exc.value.errors()}
+    assert errors == {"database_url", "redis_url"}
 
 
 def test_get_settings_cached(monkeypatch: pytest.MonkeyPatch) -> None:

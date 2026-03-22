@@ -7,6 +7,7 @@ from typing import Any
 
 from app.cache.redis_client import RedisClient
 
+
 class CacheService:
     """Encapsula operações de cache e serialização JSON."""
 
@@ -27,12 +28,20 @@ class CacheService:
 
         return value
 
-    async def set_json(self, key: str, value: dict[str, Any]) -> None:
-        serialized = json.dumps(value)
-        await self._client.set(key, serialized, ex=self._ttl_seconds)
+    async def set_json(
+        self,
+        key: str,
+        value: dict[str, Any],
+        *,
+        ttl_seconds: int | None = None,
+    ) -> None:
+        serialized_data = json.dumps(value)
+        expiration_seconds = ttl_seconds or self._ttl_seconds
 
-    async def delete(self, key: str) -> None:
-        await self._client.delete(key)
+        await self._client.set(key, serialized_data, ex=expiration_seconds)
+
+    async def delete(self, key: str) -> int:
+        return await self._client.delete(key)
 
     async def delete_by_prefix(self, prefix: str) -> int:
         deleted = 0
