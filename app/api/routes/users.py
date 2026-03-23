@@ -43,7 +43,7 @@ async def get_user_by_id(
     return await service.get_user_by_id(user_id)
 
 
-@router.put("/{user_id}", response_model=UserResponse)
+@router.patch("/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: uuid.UUID,
     payload: UserUpdate,

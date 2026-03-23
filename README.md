@@ -122,7 +122,7 @@ Prefixo padrão: `API_PREFIX=/api/v1`.
 - `POST /api/v1/users` - criar usuário
 - `GET /api/v1/users?limit=10&offset=0` - listar usuários com paginação
 - `GET /api/v1/users/{user_id}` - buscar usuário por ID
-- `PUT /api/v1/users/{user_id}` - atualizar usuário
+- `PATCH /api/v1/users/{user_id}` - atualizar usuário (parcial)
 - `DELETE /api/v1/users/{user_id}` - remover usuário (soft delete)
 
 | Método | Endpoint                                      | Descrição                         |
@@ -130,7 +130,7 @@ Prefixo padrão: `API_PREFIX=/api/v1`.
 | POST   | `/api/v1/users`                               | Criar usuário                     |
 | GET    | `/api/v1/users?limit=10&offset=0`             | Listar usuários com paginação     |
 | GET    | `/api/v1/users/{user_id}`                     | Buscar usuário por ID             |
-| PUT    | `/api/v1/users/{user_id}`                     | Atualizar usuário                 |
+| PATCH  | `/api/v1/users/{user_id}`                     | Atualizar usuário (parcial)       |
 | DELETE | `/api/v1/users/{user_id}`                     | Remover usuário (soft delete)     |
 
 ### Contratos principais

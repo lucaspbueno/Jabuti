@@ -137,7 +137,7 @@ async def test_update_user_returns_response(
     service.update_user.return_value = response_schema
     user_id = response_schema.id
 
-    response = await client.put(
+    response = await client.patch(
         f"/api/v1/users/{user_id}",
         json={"name": "Novo Nome", "email": "novo@example.com"},
     )
