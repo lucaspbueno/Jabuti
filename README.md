@@ -42,6 +42,7 @@ docker compose down -v --remove-orphans
 - [Arquitetura](#arquitetura)
 - [Estrutura de pastas](#estrutura-de-pastas)
 - [Variáveis de ambiente](#variáveis-de-ambiente)
+- [Collection (Postman e Insomnia)](#collection-postman-e-insomnia)
 - [Endpoints](#endpoints)
 - [Cache](#cache)
 - [Tratamento de erros](#tratamento-de-erros)
@@ -101,6 +102,15 @@ Principais variáveis (arquivo `.env`):
 - `REDIS_CACHE_TTL_SECONDS`
 
 Use `.env.example` como base.
+
+## Collection (Postman e Insomnia)
+
+O projeto inclui uma **collection HTTP** em [`postman/Jabuti.collection.json`](postman/Jabuti.collection.json) para testar a API de ponta a ponta.
+
+- **Postman**: importe o arquivo pela opção *Import* (coleção no formato Postman Collection v2.1).
+- **Insomnia**: use *Import* → *Choose file* → e selecione o mesmo JSON (funciona tanto para o Postman quanto para o Insomnia).
+
+Por padrão a collection usa `base_url` = `http://localhost:8000` e `api_prefix` = `/api/v1`; altere essas variáveis na collection se o ambiente ou o prefixo da API forem diferentes.
 
 ## Endpoints
 
